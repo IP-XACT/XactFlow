@@ -7,17 +7,13 @@ from typing import Iterable, Optional, Union
 import ipxact
 from lxml import etree
 
+from . import SCR
 from .diagnostics import Diagnostic, Severity
 
-# Mirrors the parser configuration ipxact.parse_file uses internally (not exposed publicly
-# by ipxact-compiler, so duplicated here on purpose): comments left in place can silently
-# corrupt a preceding element's text, so they are stripped up front here too, since the
-# parsed root below is reused for ipxact.parse_element instead of re-parsing.
+# Mirrors the parser configuration.
 _XML_PARSER = etree.XMLParser(remove_comments=True)
 
-# IEEE 1685-2022's XML namespace. Files outside this namespace are not IP-XACT at all (e.g.
-# unrelated tooling config sitting in a scanned directory) and are silently skipped rather
-# than reported, since they were never meant to be read by this library.
+# IEEE 1685-2022's XML namespace. Files outside this namespace are not IP-XACT at all.
 _IPXACT_NAMESPACE = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
@@ -33,8 +29,7 @@ class LibraryEntry:
 class Library:
     """A VLNV-indexed collection of IP-XACT documents discovered by scanning directories.
 
-    Mirrors an IP-XACT library/catalog of files without requiring an actual ipxact:catalog
-    document: every .xml file under the scanned roots is parsed with ipxact.parse_file, and
+    Every .xml file under the scanned roots is parsed with ipxact.parse_file, and
     documents that parse successfully are indexed by their VLNV. Files that fail to parse, and
     VLNV collisions (SCR 1.1 uniqueVLNV), are recorded as diagnostics instead of raising.
     """
@@ -54,10 +49,10 @@ class Library:
         try:
             root = etree.parse(str(path), parser=_XML_PARSER).getroot()
         except etree.XMLSyntaxError:
-            return  # not well-formed XML at all; not ours to report on
+            return  # not well-formed XML at all, not ours to report on.
 
         if etree.QName(root).namespace != _IPXACT_NAMESPACE:
-            return  # well-formed XML, but not IP-XACT; silently skip
+            return  # well-formed XML, but not IP-XACT, silently skip.
 
         try:
             document = ipxact.parse_element(root)
@@ -87,6 +82,7 @@ class Library:
             return
 
         self.entries[vlnv] = LibraryEntry(path=path, document=document)
+        self.diagnostics.extend(SCR.run_single_doc_checks(document))
 
     def documents(self) -> Iterable[object]:
         return (entry.document for entry in self.entries.values())
