@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ipxact:design xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022">
+  <ipxact:vendor>example.org</ipxact:vendor>
+  <ipxact:library>soc</ipxact:library>
+  <ipxact:name>top</ipxact:name>
+  <ipxact:version>1.0</ipxact:version>
+
+  <ipxact:componentInstances>
+    <ipxact:componentInstance>
+      <ipxact:instanceName>init0</ipxact:instanceName>
+      <ipxact:componentRef vendor="example.org" library="ip" name="initiator_comp" version="1.0"/>
+    </ipxact:componentInstance>
+    <ipxact:componentInstance>
+      <ipxact:instanceName>tgt0</ipxact:instanceName>
+      <ipxact:componentRef vendor="example.org" library="ip" name="target_comp" version="1.0"/>
+    </ipxact:componentInstance>
+  </ipxact:componentInstances>
+
+  <ipxact:interconnections>
+    <ipxact:interconnection>
+      <ipxact:name>conn0</ipxact:name>
+      <ipxact:activeInterface componentInstanceRef="init0" busRef="bus_if"/>
+      <ipxact:activeInterface componentInstanceRef="tgt0" busRef="bus_if"/>
+    </ipxact:interconnection>
+  </ipxact:interconnections>
+</ipxact:design>
