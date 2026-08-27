@@ -17,18 +17,36 @@ def test_concrete_exporter_subclass_can_be_instantiated_and_called():
         def __init__(self):
             self.calls = []
 
-        def export(self, elaborated, output_dir, **options):
-            self.calls.append((elaborated, output_dir, options))
+        def export(self, subject, output_dir, **options):
+            self.calls.append((subject, output_dir, options))
 
     exporter = FakeExporter()
-    exporter.export(elaborated=None, output_dir=Path("/tmp/out"), foo="bar")
+    exporter.export(subject=None, output_dir=Path("/tmp/out"), foo="bar")
     assert exporter.calls == [(None, Path("/tmp/out"), {"foo": "bar"})]
+
+
+def test_export_accepts_any_kind_of_subject_not_only_an_elaborated_design():
+    # subject is deliberately untyped: an exporter may receive an ElaboratedDesign, a bare
+    # ipxact.Component/Design an Importer just produced, or anything else it chooses to support.
+    class FakeExporter(Exporter):
+        name = "fake"
+
+        def __init__(self):
+            self.calls = []
+
+        def export(self, subject, output_dir, **options):
+            self.calls.append(subject)
+
+    exporter = FakeExporter()
+    bare_component = object()  # stands in for a bare ipxact.Component here
+    exporter.export(bare_component, Path("/tmp/out"))
+    assert exporter.calls == [bare_component]
 
 
 class _FakeExporter(Exporter):
     name = "fake"
 
-    def export(self, elaborated, output_dir, **options):
+    def export(self, subject, output_dir, **options):
         pass
 
 

@@ -6,18 +6,21 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Dict, Type
 
-from .elaborate import ElaboratedDesign
-
 _ENTRY_POINT_GROUP = "xactflow.exporters"
 
 
 class Exporter(abc.ABC):
     """Base class for a XactFlow exporter plugin.
 
-    An exporter turns an elaborated design into some output artifact (RTL, documentation,
-    another IP-XACT file, etc). XactFlow itself does not contains exporters. third-party packages
-    register subclasses under the "xactflow.exporters" entry point group in their own pyproject.toml,
-    and discover_exporters() below finds them without XactFlow depending on them.
+    An exporter turns some IP-XACT-flavored Python object into an output artifact (RTL,
+    documentation, another IP-XACT file, etc). `subject` is deliberately untyped: it may be an
+    ElaboratedDesign, a bare ipxact.Component or ipxact.Design, or anything else a given exporter
+    chooses to support. It is each exporter's own job to check what it was actually handed and
+    document what it accepts.
+
+    XactFlow itself ships no exporters; third-party packages register subclasses under the
+    "xactflow.exporters" entry point group in their own pyproject.toml, and discover_exporters()
+    below finds them without XactFlow depending on them.
 
     An exporter that itself generates IP-XACT output should re-run SCR checking on what it
     generated, using the public, standalone xactflow.SCR.run_single_doc_checks /
@@ -27,8 +30,8 @@ class Exporter(abc.ABC):
     name: str
 
     @abc.abstractmethod
-    def export(self, elaborated: ElaboratedDesign, output_dir: Path, **options: object) -> None:
-        """Generate this exporter's output for `elaborated` into `output_dir`."""
+    def export(self, subject: object, output_dir: Path, **options: object) -> None:
+        """Generate this exporter's output for `subject` into `output_dir`."""
 
 
 def _entry_points_for_group(group: str):

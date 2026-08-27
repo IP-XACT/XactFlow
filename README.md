@@ -97,8 +97,12 @@ XactFlow defines two plugin interfaces, both discovered via
 [entry points](https://packaging.python.org/en/latest/specifications/entry-points/), neither
 implemented in this repository:
 
-- `xactflow.Exporter` (`xactflow.exporters` entry point group): turns an elaborated design into
-  an output artifact, e.g. RTL, documentation, or another format entirely.
+- `xactflow.Exporter` (`xactflow.exporters` entry point group): turns some IP-XACT-flavored
+  Python object into an output artifact, e.g. RTL, documentation, or another IP-XACT file. Its
+  `export(subject, output_dir, **options)` method leaves `subject` deliberately untyped: it may
+  be an `ElaboratedDesign` (a fully resolved multi-instance design), a bare `ipxact.Component` or
+  `ipxact.Design`, or anything else a given exporter chooses to support.
+  Each exporter documents and checks what it actually accepts.
 - `xactflow.Importer` (`xactflow.importers` entry point group): reads a non-IP-XACT source (a
   custom design description, an annotated SystemVerilog file, etc.) and produces an IP-XACT
   object model instance from it.

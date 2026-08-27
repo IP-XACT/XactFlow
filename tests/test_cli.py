@@ -74,8 +74,8 @@ class _FakeExporter(Exporter):
     name = "fake"
     exported: list = []
 
-    def export(self, elaborated, output_dir, **options):
-        type(self).exported.append((elaborated.vlnv, output_dir, options))
+    def export(self, subject, output_dir, **options):
+        type(self).exported.append((subject.vlnv, output_dir, options))
 
 
 def test_installed_exporter_becomes_its_own_top_level_subcommand(monkeypatch, tmp_path, capsys):
