@@ -1,9 +1,8 @@
-"""First slice of IEEE 1685-2022 Annex B semantic consistency rules.
+"""IEEE 1685-2022 Annex B, Table B.2: Interconnections (19 rules, SCR 2.1-2.19).
 
-Covers a working vertical slice: VLNV resolution (Table B.1) and interconnections
-(Table B.2), enough to exercise both scr.runner hooks end to end from elaborate.resolver.
-The remaining ~120 Annex B rules are additions to this module (or sibling modules split by
-table, once this one grows large), following the same @rule pattern.
+SCR 2.1 through SCR 2.5 are implemented, exercised by elaborate.resolver. Every other rule
+in this table is registered via stub() so it is tracked and discoverable through
+SCR.all_rules(), with no check logic yet.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from typing import TYPE_CHECKING, Dict, Iterator, List, Set, Tuple
 import ipxact
 
 from ..diagnostics import Diagnostic, Severity
-from .registry import rule
+from .registry import rule, stub
 
 if TYPE_CHECKING:
     from ..elaborate.model import ElaboratedDesign, ElaboratedInstance, ElaboratedInterconnection, ResolvedInterfaceEndpoint
@@ -55,82 +54,6 @@ def _bus_definitions_compatible(a: ipxact.VLNV, b: ipxact.VLNV, library) -> bool
     if a == b:
         return True
     return b in _extends_ancestors(a, library) or a in _extends_ancestors(b, library)
-
-
-@rule(
-    id="SCR 1.9",
-    table="B.1",
-    name="compRefVLNVisComp",
-    single_doc_check=False,
-    post_config=False,
-    description=(
-        "The VLNV in a componentInstanceRef element in a design shall be a reference to a "
-        "component."
-    ),
-)
-def _check_component_ref_is_component(elaborated: "ElaboratedDesign") -> Iterator[Diagnostic]:
-    for instance_ref in elaborated.design.component_instances:
-        if instance_ref.instance_name in elaborated.instances:
-            continue
-        vlnv = instance_ref.component_ref.vlnv
-        existing = elaborated.library.get(vlnv)
-        if existing is None:
-            detail = f"no document with VLNV {vlnv} was found in the library"
-        else:
-            detail = f"VLNV {vlnv} resolves to a {type(existing).__name__}, not a component"
-        yield Diagnostic(
-            message=(
-                f"componentInstance '{instance_ref.instance_name}' componentRef does not "
-                f"resolve to a component: {detail}"
-            ),
-            severity=Severity.ERROR,
-            location=f"{elaborated.vlnv}/{instance_ref.instance_name}",
-            rule_id="SCR 1.9",
-            rule_name="compRefVLNVisComp",
-        )
-
-
-@rule(
-    id="SCR 1.2",
-    table="B.1",
-    name="anyVLNVRefMustExist",
-    single_doc_check=False,
-    post_config=False,
-    description=(
-        "Any VLNV in an IP-XACT document used to reference another IP-XACT document shall "
-        "precisely match the identifying VLNV of an existing IP-XACT document. Checked here "
-        "for the busType and abstractionRef of every resolved instance's bus interfaces."
-    ),
-)
-def _check_bus_interface_vlnv_refs_exist(elaborated: "ElaboratedDesign") -> Iterator[Diagnostic]:
-    for instance in elaborated.instances.values():
-        for bus_interface in instance.component.bus_interfaces:
-            bus_vlnv = bus_interface.bus_type.vlnv
-            if elaborated.library.get_bus_definition(bus_vlnv) is None:
-                yield Diagnostic(
-                    message=(
-                        f"busInterface '{bus_interface.name}' busType references VLNV "
-                        f"{bus_vlnv}, which does not resolve to a busDefinition in the library"
-                    ),
-                    severity=Severity.ERROR,
-                    location=f"{instance.instance_name}/{bus_interface.name}",
-                    rule_id="SCR 1.2",
-                    rule_name="anyVLNVRefMustExist",
-                )
-            for abstraction_type in bus_interface.abstraction_types:
-                abstraction_vlnv = abstraction_type.abstraction_ref.vlnv
-                if elaborated.library.get_abstraction_definition(abstraction_vlnv) is None:
-                    yield Diagnostic(
-                        message=(
-                            f"busInterface '{bus_interface.name}' abstractionRef references "
-                            f"VLNV {abstraction_vlnv}, which does not resolve to an "
-                            f"abstractionDefinition in the library"
-                        ),
-                        severity=Severity.ERROR,
-                        location=f"{instance.instance_name}/{bus_interface.name}",
-                        rule_id="SCR 1.2",
-                        rule_name="anyVLNVRefMustExist",
-                    )
 
 
 @rule(
@@ -280,7 +203,7 @@ def _check_active_initiator_connects(elaborated: "ElaboratedDesign") -> Iterator
 @rule(
     id="SCR 2.5",
     table="B.2",
-    name="activeMslvConnect",
+    name="activeMSlvConnect",
     single_doc_check=False,
     post_config=False,
     description=(
@@ -313,5 +236,180 @@ def _check_active_mirrored_target_connects(
                     severity=Severity.ERROR,
                     location=f"{elaborated.vlnv}/{interconnection.name}",
                     rule_id="SCR 2.5",
-                    rule_name="activeMslvConnect",
+                    rule_name="activeMSlvConnect",
                 )
+
+
+stub(
+    id="SCR 2.6",
+    table="B.2",
+    name="hierSlvConnect",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "A hierarchical interface of type target shall connect only to active interfaces of "
+        "type target."
+    ),
+)
+
+stub(
+    id="SCR 2.7",
+    table="B.2",
+    name="hierMMstConnect",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "A hierarchical interface of type mirrored-initiator shall connect only to active "
+        "interfaces of type mirrored-initiator."
+    ),
+)
+
+stub(
+    id="SCR 2.8",
+    table="B.2",
+    name="systemConnect",
+    single_doc_check=False,
+    post_config=True,
+    description=(
+        "An active interface of type system shall connect only to active interfaces of type "
+        "mirrored-system or hierarchical interfaces of type system."
+    ),
+)
+
+stub(
+    id="SCR 2.9",
+    table="B.2",
+    name="MstSystemConnect",
+    single_doc_check=False,
+    post_config=True,
+    description=(
+        "An active interface of type mirrored-system shall connect only to active interfaces "
+        "of type system or hierarchical interfaces of type mirrored-system."
+    ),
+)
+
+stub(
+    id="SCR 2.10",
+    table="B.2",
+    name="interconnectionDriver",
+    single_doc_check=False,
+    post_config=True,
+    description=(
+        "An interconnection element without system interfaces or mirrored-system interfaces "
+        "shall contain one driving interface, which is an active interface referencing an "
+        "initiator, a mirrored-target, or a hierarchical interface referencing a target or "
+        "mirrored-initiator."
+    ),
+)
+
+stub(
+    id="SCR 2.11",
+    table="B.2",
+    name="MstToSlvBitsLAUMatch",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "In a direct initiator-to-target connection, the value of bitsInLAU in the "
+        "initiator's bus interface shall match the value of bitsInLAU in the target's bus "
+        "interface."
+    ),
+)
+
+stub(
+    id="SCR 2.12",
+    table="B.2",
+    name="MstToSlvIsDirectConnect",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "In a direct initiator-to-target connection, the busDefinitions referenced by the "
+        "busInterfaces shall have a directConnection element with the value true."
+    ),
+)
+
+stub(
+    id="SCR 2.13",
+    table="B.2",
+    name="SysToMSysGroupsMatch",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "In a connection between a system interface and a mirrored-system interface, the "
+        "values of the group elements of the two bus interfaces shall be identical."
+    ),
+)
+
+stub(
+    id="SCR 2.14",
+    table="B.2",
+    name="EndianessMustMatch",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "The endianess in all bus interfaces shall match for any interconnection using an "
+        "addressable bus. If the endianess is not specified at either bus interface, it is "
+        "presumed to be little endian."
+    ),
+)
+
+stub(
+    id="SCR 2.15",
+    table="B.2",
+    name="ConnectionRequired",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "If a design contains a component with a busInterface that has a "
+        "connectionRequired element with the value true, that busInterface shall be included "
+        "in an interconnection of the design."
+    ),
+)
+
+stub(
+    id="SCR 2.16",
+    table="B.2",
+    name="MonIntfPathMustExist",
+    single_doc_check=False,
+    post_config=True,
+    description=(
+        "A monitorInterconnection with interfaces that contain a path attribute with a "
+        "componentInstanceRef and busRef shall exist in all hierarchical views."
+    ),
+)
+
+stub(
+    id="SCR 2.17",
+    table="B.2",
+    name="broadcastConstraint",
+    single_doc_check=True,
+    post_config=True,
+    description=(
+        "An interconnection may not contain more than two total activeInterface and "
+        "hierInterface elements unless the underlying bus definition has the broadcast "
+        "element set to true."
+    ),
+)
+
+stub(
+    id="SCR 2.18",
+    table="B.2",
+    name="excludePortExists",
+    single_doc_check=False,
+    post_config=False,
+    description=(
+        "A physical port name referenced in an excludePort element shall match the name of a "
+        "port defined in the ports list of the component."
+    ),
+)
+
+stub(
+    id="SCR 2.19",
+    table="B.2",
+    name="physicalPortExists",
+    single_doc_check=True,
+    post_config=False,
+    description=(
+        "The component abstractionType viewRef elements shall reference views such that all "
+        "component ports referenced by physicalPort elements exist."
+    ),
+)
