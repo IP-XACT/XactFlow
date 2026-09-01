@@ -56,6 +56,29 @@ def test_elaborate_reports_unresolvable_component_ref():
     assert len(scr_2_1) == 1
 
 
+def test_scr_1_9_still_fires_when_a_duplicate_instance_name_already_resolved():
+    # Two componentInstance elements sharing a name, one resolving and one not: elaborated
+    # .instances only has room for one entry per name, so SCR 1.9's check must not use bare
+    # name-presence as a stand-in for "did *this* instance_ref resolve".
+    library = Library.scan(FIXTURES / "basic")
+    design = _load_top_design(library)
+    good_ref = design.component_instances[0].component_ref
+    design.component_instances = [
+        ipxact.ComponentInstance(instance_name="dup", component_ref=good_ref),
+        ipxact.ComponentInstance(
+            instance_name="dup",
+            component_ref=ipxact.VLNVRef("example.org", "ip", "does_not_exist", "1.0"),
+        ),
+    ]
+    design.interconnections = []
+
+    elaborated = elaborate(design, library)
+
+    scr_1_9 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 1.9"]
+    assert len(scr_1_9) == 1
+    assert "does_not_exist" in scr_1_9[0].message
+
+
 def _vref(vlnv: ipxact.VLNV) -> ipxact.VLNVRef:
     return ipxact.VLNVRef(vlnv.vendor, vlnv.library, vlnv.name, vlnv.version)
 

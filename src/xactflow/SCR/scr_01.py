@@ -45,7 +45,10 @@ stub(
 )
 def _check_component_ref_is_component(elaborated: "ElaboratedDesign") -> Iterator[Diagnostic]:
     for instance_ref in elaborated.design.component_instances:
-        if instance_ref.instance_name in elaborated.instances:
+        resolved = elaborated.instances.get(instance_ref.instance_name)
+        # Identity, not just name presence: two componentInstance elements can share a name,
+        # elaborated.instances only has room for one entry per name.
+        if resolved is not None and resolved.source is instance_ref:
             continue
         vlnv = instance_ref.component_ref.vlnv
         existing = elaborated.library.get(vlnv)
