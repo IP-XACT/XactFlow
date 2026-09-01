@@ -71,3 +71,47 @@ def test_duplicate_vlnv_is_recorded_as_an_scr_1_1_error():
     # the first-scanned file wins; the real fixture (not the stub duplicate) stays indexed.
     component = library.get_component(ipxact.VLNV.parse("example.org:ip:initiator_comp:1.0"))
     assert component.bus_interfaces
+
+
+_DESIGN_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<ipxact:design xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022">
+  <ipxact:vendor>example.org</ipxact:vendor>
+  <ipxact:library>soc</ipxact:library>
+  <ipxact:name>dup</ipxact:name>
+  <ipxact:version>1.0</ipxact:version>
+</ipxact:design>
+"""
+
+_DESIGN_XML_WITH_DUPLICATE_INTERFACE = """<?xml version="1.0" encoding="UTF-8"?>
+<ipxact:design xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022">
+  <ipxact:vendor>example.org</ipxact:vendor>
+  <ipxact:library>soc</ipxact:library>
+  <ipxact:name>dup</ipxact:name>
+  <ipxact:version>1.0</ipxact:version>
+  <ipxact:interconnections>
+    <ipxact:interconnection>
+      <ipxact:name>conn0</ipxact:name>
+      <ipxact:activeInterface componentInstanceRef="a0" busRef="bif"/>
+      <ipxact:activeInterface componentInstanceRef="b0" busRef="bif"/>
+    </ipxact:interconnection>
+    <ipxact:interconnection>
+      <ipxact:name>conn1</ipxact:name>
+      <ipxact:activeInterface componentInstanceRef="a0" busRef="bif"/>
+      <ipxact:activeInterface componentInstanceRef="b0" busRef="bif"/>
+    </ipxact:interconnection>
+  </ipxact:interconnections>
+</ipxact:design>
+"""
+
+
+def test_duplicate_vlnv_document_still_gets_its_own_single_doc_checks(tmp_path):
+    # The rejected (duplicate) document can have its own independent SCR violations; being a
+    # duplicate VLNV must not suppress checking its own content.
+    (tmp_path / "a.xml").write_text(_DESIGN_XML)
+    (tmp_path / "b.xml").write_text(_DESIGN_XML_WITH_DUPLICATE_INTERFACE)
+
+    library = Library.scan(tmp_path)
+
+    assert any(d.rule_id == "SCR 1.1" for d in library.diagnostics)
+    scr_2_3 = [d for d in library.diagnostics if d.rule_id == "SCR 2.3"]
+    assert len(scr_2_3) == 2  # one per (instance, bus interface) pair: a0/bif and b0/bif

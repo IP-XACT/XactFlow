@@ -66,6 +66,10 @@ class Library:
             )
             return
 
+        # Run single-doc checks regardless of what happens next: a document rejected below as a
+        # duplicate VLNV can still have its own independent SCR violations worth reporting.
+        self.diagnostics.extend(SCR.run_single_doc_checks(document))
+
         vlnv = document.vlnv
         existing = self.entries.get(vlnv)
         if existing is not None:
@@ -82,7 +86,6 @@ class Library:
             return
 
         self.entries[vlnv] = LibraryEntry(path=path, document=document)
-        self.diagnostics.extend(SCR.run_single_doc_checks(document))
 
     def documents(self) -> Iterable[object]:
         return (entry.document for entry in self.entries.values())
