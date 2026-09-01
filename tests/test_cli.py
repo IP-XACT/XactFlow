@@ -40,6 +40,25 @@ def test_elaborate_reports_unresolvable_component_ref_and_exits_nonzero(capsys):
     assert "SCR 1.9" in err
 
 
+def test_elaborate_does_not_duplicate_diagnostics_when_design_is_also_inside_lib(capsys):
+    # Library.scan already single-doc-checks every file it scans, including the top design
+    # itself when --lib points at (or includes) the directory it lives in; elaborate() checks
+    # the same design again independently. The two diagnostic lists must be deduped when
+    # combined, not just concatenated.
+    exit_code = main(
+        [
+            "elaborate",
+            str(FIXTURES / "cli" / "duplicate_interface_design.xml"),
+            "--lib",
+            str(FIXTURES / "cli"),
+        ]
+    )
+
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert err.count("SCR 2.3") == 2  # one per (instance, bus interface) pair, not doubled
+
+
 def test_check_happy_path_exits_zero(capsys):
     exit_code = main(["check", str(FIXTURES / "basic" / "top_design.xml")])
 
@@ -57,6 +76,21 @@ def test_check_reports_duplicate_interface_and_exits_nonzero(capsys):
 
 def test_main_reports_a_clean_error_for_a_missing_file(capsys):
     exit_code = main(["check", str(FIXTURES / "does_not_exist.xml")])
+
+    assert exit_code == 1
+    assert capsys.readouterr().err.startswith("error: ")
+
+
+def test_a_broken_installed_plugin_does_not_crash_unrelated_commands(monkeypatch, capsys):
+    # discover_exporters()/discover_importers() run during _build_parser(), before any
+    # subcommand is even chosen, so a plugin that fails to load must not crash commands (like
+    # check, used here) that have nothing to do with that plugin.
+    def broken_discover_exporters():
+        raise ImportError("no module named 'xactflow_broken_plugin'")
+
+    monkeypatch.setattr("xactflow.cli.discover_exporters", broken_discover_exporters)
+
+    exit_code = main(["check", str(FIXTURES / "basic" / "top_design.xml")])
 
     assert exit_code == 1
     assert capsys.readouterr().err.startswith("error: ")

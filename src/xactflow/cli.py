@@ -33,12 +33,27 @@ def _parse_option(value: str) -> Tuple[str, str]:
     return key, val
 
 
+def _dedupe_diagnostics(diagnostics: List[Diagnostic]) -> List[Diagnostic]:
+    # library.diagnostics and elaborated.diagnostics can both contain single-doc SCR checks for
+    # a same design, since Library.scan and elaborate() each run single-doc checks independently.
+    # Diagnostic is a frozen dataclass, so exact-duplicate findings can be collapsed by value
+    # while preserving first-seen order.
+    seen: set = set()
+    deduped = []
+    for diagnostic in diagnostics:
+        if diagnostic in seen:
+            continue
+        seen.add(diagnostic)
+        deduped.append(diagnostic)
+    return deduped
+
+
 def _elaborate_from_args(args: argparse.Namespace):
     library = Library.scan(*args.lib)
     design = ipxact.parse_file(args.design)
     design_configuration = ipxact.parse_file(args.config) if args.config else None
     elaborated = elaborate(design, library, design_configuration)
-    diagnostics = library.diagnostics + elaborated.diagnostics
+    diagnostics = _dedupe_diagnostics(library.diagnostics + elaborated.diagnostics)
     return elaborated, diagnostics
 
 
@@ -172,9 +187,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = _build_parser()
-    args = parser.parse_args(argv)
     try:
+        parser = _build_parser()
+        args = parser.parse_args(argv)
         return args.func(args)
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
