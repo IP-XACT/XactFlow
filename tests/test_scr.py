@@ -104,7 +104,11 @@ def test_scr_2_1_reports_bus_ref_typo_on_an_otherwise_resolved_instance():
     )
     elaborated = elaborate(design, library)
 
-    assert elaborated.interconnections == []
+    # the interconnection keeps its one resolved endpoint (a0) rather than being dropped
+    # entirely; SCR 2.1 reports the typo on b0's side.
+    assert len(elaborated.interconnections) == 1
+    resolved_names = {e.instance.instance_name for e in elaborated.interconnections[0].endpoints}
+    assert resolved_names == {"a0"}
     scr_2_1 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 2.1"]
     assert len(scr_2_1) == 1
     assert "wrong_name" in scr_2_1[0].message
@@ -125,6 +129,40 @@ def test_scr_2_2_reports_incompatible_bus_definitions():
     elaborated = elaborate(design, library)
 
     assert len(elaborated.interconnections) == 1  # both endpoints resolved, just incompatible
+    scr_2_2 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 2.2"]
+    assert len(scr_2_2) == 1
+
+
+def test_scr_2_2_still_fires_when_another_endpoint_in_the_same_interconnection_fails_to_resolve():
+    # A 3-endpoint interconnection where two endpoints resolve but are bus-incompatible, and a
+    # third has an unrelated busRef typo: the incompatibility must still be reported, not hidden
+    # behind the one broken endpoint.
+    a_vlnv = ipxact.VLNV("example.org", "ip", "a", "1.0")
+    b_vlnv = ipxact.VLNV("example.org", "ip", "b", "1.0")
+    c_vlnv = ipxact.VLNV("example.org", "ip", "c", "1.0")
+    a = _component(a_vlnv, _bus_interface("bif", BUS_A, ipxact.InterfaceMode.INITIATOR))
+    b = _component(b_vlnv, _bus_interface("bif", BUS_B, ipxact.InterfaceMode.TARGET))
+    c = _component(c_vlnv, _bus_interface("bif", BUS_A, ipxact.InterfaceMode.TARGET))
+    library = _make_library(_bus_definition(BUS_A), _bus_definition(BUS_B), a, b, c)
+
+    design = _design(
+        ipxact.VLNV("example.org", "soc", "top", "1.0"),
+        [_instance("a0", a_vlnv), _instance("b0", b_vlnv), _instance("c0", c_vlnv)],
+        [
+            _interconnection(
+                "conn0",
+                _active_interface("a0", "bif"),
+                _active_interface("b0", "bif"),
+                _active_interface("c0", "wrong_name"),
+            )
+        ],
+    )
+    elaborated = elaborate(design, library)
+
+    resolved_names = {e.instance.instance_name for e in elaborated.interconnections[0].endpoints}
+    assert resolved_names == {"a0", "b0"}
+    scr_2_1 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 2.1"]
+    assert len(scr_2_1) == 1
     scr_2_2 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 2.2"]
     assert len(scr_2_2) == 1
 

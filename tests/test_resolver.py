@@ -49,9 +49,11 @@ def test_elaborate_reports_unresolvable_component_ref():
     assert len(scr_1_9) == 1
     assert "does_not_exist" in scr_1_9[0].message or "init0" in scr_1_9[0].message
 
-    # the interconnection referencing the now-unresolved instance is dropped, and SCR 2.1
-    # reports why.
-    assert elaborated.interconnections == []
+    # the interconnection keeps whatever endpoints did resolve (here, just tgt0; init0's
+    # endpoint fails since its componentRef is now broken), and SCR 2.1 reports why.
+    assert len(elaborated.interconnections) == 1
+    resolved_names = {e.instance.instance_name for e in elaborated.interconnections[0].endpoints}
+    assert resolved_names == {"tgt0"}
     scr_2_1 = [d for d in elaborated.diagnostics if d.rule_id == "SCR 2.1"]
     assert len(scr_2_1) == 1
 

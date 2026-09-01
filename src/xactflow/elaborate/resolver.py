@@ -92,12 +92,15 @@ def _resolve_interconnections(elaborated: ElaboratedDesign) -> None:
             )
             for ai in active_interfaces
         ]
-        if any(endpoint is None for endpoint in endpoints):
-            continue  # scr.rules._check_active_interfaces_exist (SCR 2.1) reports why
+        # Keep whatever endpoints did resolve rather than dropping the whole interconnection:
+        # scr.rules._check_active_interfaces_exist (SCR 2.1) reports each one that didn't, but
+        # SCR 2.2/2.4/2.5 still need to see the ones that did, e.g. two valid-but-incompatible
+        # endpoints alongside a third with an unrelated typo.
+        resolved_endpoints = [endpoint for endpoint in endpoints if endpoint is not None]
         elaborated.interconnections.append(
             ElaboratedInterconnection(
                 name=interconnection.name,
-                endpoints=endpoints,
+                endpoints=resolved_endpoints,
                 hier_interfaces=list(interconnection.hier_interfaces),
                 source=interconnection,
             )
