@@ -1,4 +1,6 @@
-# ipxact-compiler is not published to PyPI yet.
-# Using local path.
+# ipxact-compiler is overridden below to the local sibling checkout so edits to it take effect immediately.
+# assumes it's checked out as a sibling directory, adjust the path if yours differs.
+# comment it if you don't need.
+-r requirements.txt
 -e ../ipxact-compiler
 pytest

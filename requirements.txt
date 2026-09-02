@@ -1,2 +1,1 @@
-# ipxact-compiler is not published to PyPI yet.
-# ipxact-compiler
+ipxact-compiler

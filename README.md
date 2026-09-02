@@ -18,9 +18,8 @@ object graph, and checking that graph against IP-XACT Semantic Consistency Rules
 pip install xactflow
 ```
 
-`ipxact-compiler` is not published to PyPI yet; until it is, install it manually first (e.g.
-`pip install -e /path/to/ipxact-compiler`) before installing XactFlow. For local development,
-`requirements-dev.txt` assumes `ipxact-compiler` is checked out as a sibling directory:
+For local development, `requirements-dev.txt` overrides ipxact-compiler to a local installation.
+It can be modified to adapt the path or to keep the version on PyPI.
 
 ```bash
 pip install -r requirements-dev.txt -e .
