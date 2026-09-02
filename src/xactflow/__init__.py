@@ -1,3 +1,5 @@
+__version__ = "0.1.0"
+
 from . import SCR
 from .diagnostics import Diagnostic, Severity
 from .elaborate import (
@@ -30,4 +32,5 @@ __all__ = [
     "discover_importers",
     "Library",
     "LibraryEntry",
+    "__version__",
 ]
