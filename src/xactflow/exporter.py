@@ -16,7 +16,10 @@ class Exporter(abc.ABC):
     documentation, another IP-XACT file, etc). `subject` is deliberately untyped: it may be an
     ElaboratedDesign, a bare ipxact.Component or ipxact.Design, or anything else a given exporter
     chooses to support. It is each exporter's own job to check what it was actually handed and
-    document what it accepts.
+    document what it accepts, and to raise a plain TypeError when `subject` is not one of the
+    types it supports. That specific exception type is a load-bearing convention, not just a
+    style choice: the CLI's importer-to-exporter chaining (`--then`) catches TypeError
+    specifically to report a clear, one-line rejection instead of a generic error.
 
     XactFlow itself ships no exporters; third-party packages register subclasses under the
     "xactflow.exporters" entry point group in their own pyproject.toml, and discover_exporters()

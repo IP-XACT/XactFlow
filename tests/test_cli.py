@@ -181,6 +181,147 @@ def test_installed_importer_becomes_its_own_top_level_subcommand(monkeypatch, ca
     assert "via 'fake-importer': str" in out
 
 
+class _ChainableFakeExporter(Exporter):
+    name = "chainable"
+    calls: list = []
+
+    def export(self, subject, output_dir, **options):
+        type(self).calls.append((subject, output_dir, options))
+
+
+class _TypeRejectingFakeExporter(Exporter):
+    name = "picky"
+
+    def export(self, subject, output_dir, **options):
+        raise TypeError(f"picky only supports Component, got {type(subject).__name__}")
+
+
+def test_then_chains_importer_output_straight_into_an_exporter(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"chainable": _ChainableFakeExporter})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+    _ChainableFakeExporter.calls.clear()
+    _FakeImporter.imported.clear()
+
+    exit_code = main(
+        [
+            "fake-importer",
+            str(FIXTURES / "basic" / "top_design.xml"),
+            "--option",
+            "mode=strict",
+            "--then",
+            "chainable",
+            "--output",
+            str(tmp_path),
+            "--then-option",
+            "flavor=minimal",
+        ]
+    )
+
+    assert exit_code == 0
+    assert _FakeImporter.imported == [
+        (Path(str(FIXTURES / "basic" / "top_design.xml")), {"mode": "strict"})
+    ]
+    assert len(_ChainableFakeExporter.calls) == 1
+    subject, output_dir, options = _ChainableFakeExporter.calls[0]
+    assert subject == "fake-object-model"  # exactly what _FakeImporter.import_ returned, unserialized
+    assert output_dir == tmp_path
+    assert options == {"flavor": "minimal"}
+    out = capsys.readouterr().out
+    assert "imported" in out
+    assert "exported via 'chainable'" in out
+
+
+def test_then_with_unknown_exporter_name_is_an_argparse_error(monkeypatch, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"chainable": _ChainableFakeExporter})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "fake-importer",
+                str(FIXTURES / "basic" / "top_design.xml"),
+                "--then",
+                "does-not-exist",
+            ]
+        )
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_then_surfaces_a_clear_error_when_the_exporter_rejects_the_type(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"picky": _TypeRejectingFakeExporter})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+    _FakeImporter.imported.clear()
+
+    exit_code = main(
+        [
+            "fake-importer",
+            str(FIXTURES / "basic" / "top_design.xml"),
+            "--then",
+            "picky",
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "'picky' cannot export the output of 'fake-importer'" in err
+    assert "str" in err  # names the rejected type, not just a bare traceback
+    assert "Traceback" not in err
+
+
+class _MisbehavingFakeExporter(Exporter):
+    name = "misbehaving"
+
+    def export(self, subject, output_dir, **options):
+        # a non-compliant exporter that doesn't follow the TypeError-for-rejection convention,
+        # e.g. unguarded attribute access on a subject it doesn't actually support.
+        subject.instances
+
+
+def test_then_contextualizes_a_non_type_error_from_the_exporter_too(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"misbehaving": _MisbehavingFakeExporter})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+    _FakeImporter.imported.clear()
+
+    exit_code = main(
+        [
+            "fake-importer",
+            str(FIXTURES / "basic" / "top_design.xml"),
+            "--then",
+            "misbehaving",
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    # still names both plugins and the type, unlike main()'s bare "error: ..." fallback, even
+    # though this exporter didn't raise the documented TypeError convention.
+    assert "'misbehaving' failed while exporting the output of 'fake-importer'" in err
+    assert "str" in err
+    assert not err.startswith("error: ")
+    assert "Traceback" not in err
+
+
+def test_then_option_without_then_is_a_clear_error(monkeypatch, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+
+    exit_code = main(
+        [
+            "fake-importer",
+            str(FIXTURES / "basic" / "top_design.xml"),
+            "--then-option",
+            "flavor=minimal",
+        ]
+    )
+
+    assert exit_code == 1
+    assert "--then-option requires --then" in capsys.readouterr().err
+
+
 def test_plugin_name_colliding_with_a_builtin_command_is_skipped(monkeypatch, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"check": _FakeExporter})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {})

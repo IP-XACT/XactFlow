@@ -48,6 +48,24 @@ automatically, named after whatever entry point name they registered under
 package like that is installed. XactFlow itself ships no exporters or importers; see
 [Plugins](#plugins) below.
 
+An importer subcommand also accepts `--then <exporter-name>`, which hands its result straight to
+that exporter's `export()` in the same process, no intermediate file involved, e.g.:
+
+```bash
+xactflow sv module.sv --option metadata=module_ipxact.json --then component --output out/
+```
+
+`--then`'s value is validated against the exporters registered as their own top-level subcommand
+(so one whose name collides with another subcommand and got skipped isn't offered either), so an
+unknown name fails immediately with a standard argument error. `--then-option KEY=VALUE` sets an
+option for the chained exporter specifically, kept separate from the importer's own `--option`.
+Since `Exporter.export()` deliberately leaves its input untyped (see [Plugins](#plugins) below),
+the chosen exporter may reject what the importer produced; by convention it signals that with a
+plain `TypeError`, which surfaces as a clear one-line CLI error naming both plugins and the
+rejected type rather than a traceback. An exporter raising anything else still gets a
+contextualized error naming both plugins, just without the "cannot export" wording that implies
+a clean, expected rejection.
+
 ## Library usage
 
 ```python

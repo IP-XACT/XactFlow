@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple, Type
+from typing import Dict, List, Optional, Sequence, Tuple, Type
 
 import ipxact
 
@@ -93,9 +93,48 @@ def _cmd_run_exporter(args: argparse.Namespace) -> int:
 
 
 def _cmd_run_importer(args: argparse.Namespace) -> int:
+    if args.then_option and not args.then:
+        print("--then-option requires --then to also be given", file=sys.stderr)
+        return 1
+
     options = dict(args.option or [])
     result = args.importer_class().import_(Path(args.source), **options)
-    print(f"imported '{args.source}' via '{args.command}': {type(result).__name__}")
+
+    if not args.then:
+        print(f"imported '{args.source}' via '{args.command}': {type(result).__name__}")
+        return 0
+
+    # --then chains straight into an installed exporter's .export(), in the same process, on
+    # the object import_() just returned: no serialization, no intermediate file. args.then is
+    # validated by argparse (choices=) against the exporters registered as their own subcommand,
+    # so the lookup below always succeeds; what can still fail is the exporter rejecting this
+    # particular result. Exporter.export()'s documented convention is to signal that with a
+    # plain TypeError (subject is deliberately untyped, see exporter.py), which gets the precise
+    # "cannot export" message below; a non-compliant exporter raising something else still gets
+    # a contextualized message rather than main()'s bare "error: ..." fallback.
+    then_options = dict(args.then_option or [])
+    then_exporter_class = args.available_exporters[args.then]
+    try:
+        then_exporter_class().export(result, Path(args.output), **then_options)
+    except TypeError as exc:
+        print(
+            f"'{args.then}' cannot export the output of '{args.command}' "
+            f"({type(result).__name__}): {exc}",
+            file=sys.stderr,
+        )
+        return 1
+    except Exception as exc:
+        print(
+            f"'{args.then}' failed while exporting the output of '{args.command}' "
+            f"({type(result).__name__}): {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        f"imported '{args.source}' via '{args.command}' and exported via '{args.then}' "
+        f"to {args.output}"
+    )
     return 0
 
 
@@ -139,7 +178,10 @@ def _add_exporter_subparser(
 
 
 def _add_importer_subparser(
-    subparsers: "argparse._SubParsersAction", name: str, importer_class: Type[Importer]
+    subparsers: "argparse._SubParsersAction",
+    name: str,
+    importer_class: Type[Importer],
+    available_exporters: Dict[str, Type[Exporter]],
 ) -> None:
     parser = subparsers.add_parser(name, help=f"run the '{name}' importer on a non-IP-XACT source file")
     parser.add_argument("source", help="path to the source file to import")
@@ -147,7 +189,27 @@ def _add_importer_subparser(
         "--option", action="append", type=_parse_option, metavar="KEY=VALUE",
         help="an importer-specific option, may be given multiple times",
     )
-    parser.set_defaults(func=_cmd_run_importer, importer_class=importer_class)
+    parser.add_argument(
+        "--then",
+        default=None,
+        choices=sorted(available_exporters),
+        metavar="EXPORTER",
+        help=(
+            "an installed exporter's registered name; if given, this importer's result is "
+            "handed straight to that exporter's export() in the same process, no intermediate "
+            "file involved"
+        ),
+    )
+    parser.add_argument(
+        "--output", default=".", metavar="DIR", help="output directory for --then's exporter"
+    )
+    parser.add_argument(
+        "--then-option", action="append", type=_parse_option, metavar="KEY=VALUE",
+        help="an option for --then's exporter, separate from --option; may be given multiple times",
+    )
+    parser.set_defaults(
+        func=_cmd_run_importer, importer_class=importer_class, available_exporters=available_exporters
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -163,6 +225,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_builtin_subparsers(subparsers)
 
     registered_names = set(_BUILTIN_COMMANDS)
+    registered_exporters: Dict[str, Type[Exporter]] = {}
     for name, exporter_class in sorted(discover_exporters().items()):
         if name in registered_names:
             print(
@@ -172,6 +235,7 @@ def _build_parser() -> argparse.ArgumentParser:
             continue
         _add_exporter_subparser(subparsers, name, exporter_class)
         registered_names.add(name)
+        registered_exporters[name] = exporter_class
 
     for name, importer_class in sorted(discover_importers().items()):
         if name in registered_names:
@@ -180,7 +244,9 @@ def _build_parser() -> argparse.ArgumentParser:
                 file=sys.stderr,
             )
             continue
-        _add_importer_subparser(subparsers, name, importer_class)
+        # registered_exporters (not the raw discover_exporters() result) so --then only ever
+        # offers exporters that actually made it onto the CLI as their own subcommand.
+        _add_importer_subparser(subparsers, name, importer_class, registered_exporters)
         registered_names.add(name)
 
     return parser
