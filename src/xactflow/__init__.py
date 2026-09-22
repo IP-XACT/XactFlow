@@ -12,6 +12,7 @@ from .elaborate import (
     elaborate,
 )
 from .exporter import Exporter, discover_exporters
+from .expressions import ExpressionError, evaluate, parameter_resolver
 from .importer import Importer, discover_importers
 from .library import Library, LibraryEntry
 
@@ -28,6 +29,9 @@ __all__ = [
     "elaborate",
     "Exporter",
     "discover_exporters",
+    "ExpressionError",
+    "evaluate",
+    "parameter_resolver",
     "Importer",
     "discover_importers",
     "Library",

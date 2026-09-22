@@ -82,6 +82,32 @@ elaborated.interconnections   # list[ElaboratedInterconnection], every endpoint 
 elaborated.diagnostics        # list[Diagnostic] from every applicable SCR rule
 ```
 
+## Expression evaluation
+
+IP-XACT `Expression` fields (`addressOffset`, `size`, `range`, `width`, `bitOffset`, parameter
+values, ...) are unevaluated strings in `ipxact-compiler`'s object model, using IEEE Std 1800
+(SystemVerilog) constant-expression syntax. `xactflow.evaluate()` computes
+their concrete value:
+
+```python
+from xactflow import evaluate, parameter_resolver
+
+evaluate("2 + 3 * 4")                                       # 14
+evaluate("WIDTH - 1", resolve_parameter=lambda name: "8")   # 7
+
+resolve = parameter_resolver(component.parameters)  # keyed by parameterId
+evaluate("WIDTH * BYTES_PER_WORD", resolve_parameter=resolve)
+```
+
+`resolve_parameter` maps an identifier referenced in the expression to that parameter's own
+(unevaluated) expression string, evaluated recursively; a circular reference raises
+`ExpressionError` instead of recursing forever. Scope, deliberately: integer and real
+arithmetic, covering the address/size/width/offset math that is the overwhelming majority of
+real usage. String expressions and the IP-XACT-specific builtin functions
+(`$ipxact_index_value()`, `$ipxact_mode_condition()`, etc., used in mode conditions and packet
+fields) are not implemented. This is not wired into any SCR rule yet; it is infrastructure for
+later.
+
 ## Semantic Consistency Rules (SCR)
 
 IEEE 1685-2022's Annex B defines 281 SCRs across 15 tables, each independently tagged
@@ -100,8 +126,9 @@ A rule with `implemented=False` is registered (id, name, table, the two flags, a
 as its description) but its check always reports nothing; that's a deliberate placeholder, not a
 bug, tracking Annex B's full rule set ahead of writing the check logic for each one. Table B.14
 (expressions) and most of the overlap/alignment rules in Tables B.7-B.9 additionally need real
-IP-XACT expression evaluation, which neither `ipxact-compiler` nor XactFlow implements yet
-(`Expression` fields are unevaluated strings in the object model).
+IP-XACT expression evaluation to have check logic; `xactflow.evaluate()` (see [Expression
+evaluation](#expression-evaluation) above) now exists, but isn't wired into any of these rules
+yet.
 
 `SCR.run_single_doc_checks(document)` and `SCR.run_post_config_checks(elaborated)` are public,
 standalone functions independent of the elaborator's internals, so any caller (including a
@@ -137,10 +164,10 @@ html = "xactflow_html:HtmlExporter"
 
 ## Known limitations
 
-- **No IP-XACT expression evaluation.** `addressOffset`, `size`, `range`, `width`, `bitOffset`,
-  and similar fields are unevaluated `str` in the object model (`ipxact-compiler`'s deliberate
-  choice, carried through here). This blocks most of the overlap/alignment/stride SCRs,
-  from having real check logic yet.
+- ** Using expression evaluation in SCR rules.** `xactflow.evaluate()`
+  (see [Expression evaluation](#expression-evaluation) above) can compute a concrete value from
+  an `Expression` string, but nothing in `xactflow.SCR` calls it yet, so the
+  overlap/alignment/stride SCRs, from having real check logic.
 - **No multi-level design hierarchy.** `elaborate()` resolves one `Design` flat, it does not
   recurse into a design nested inside another design's hierarchy. It will be supported in the future.
 - **No `DesignConfiguration` application.** A `DesignConfiguration` can be passed to `elaborate()`
@@ -154,7 +181,9 @@ html = "xactflow_html:HtmlExporter"
 
 ## Ideas for later
 
-- Real IP-XACT expression evaluation.
+- Wire `xactflow.evaluate()` into the overlap/alignment/stride SCR rules it was built to unblock.
+- String expression and IP-XACT builtin function (`$ipxact_index_value()` and similar) support
+  in `xactflow.evaluate()`.
 - Multi-level design hierarchy elaboration.
 - A better SCR coverage, especially for the single file and pre config ones.
 - The actual exporter and importer plugin packages (an elaborated design to RTL exporter, an IP-XACT-emitting
