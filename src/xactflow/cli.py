@@ -167,9 +167,17 @@ def _add_exporter_subparser(
 ) -> None:
     parser = subparsers.add_parser(name, help=f"link a design and run the '{name}' exporter on it")
     parser.add_argument("design", help="path to the top-level design XML file")
-    parser.add_argument("--lib", action="append", default=[], metavar="DIR")
-    parser.add_argument("--config", default=None, metavar="FILE")
-    parser.add_argument("--output", default=".", metavar="DIR")
+    parser.add_argument(
+        "--lib",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="directory to scan for IP-XACT files; may be given multiple times",
+    )
+    parser.add_argument(
+        "--config", default=None, metavar="FILE", help="path to the matching designConfiguration XML file"
+    )
+    parser.add_argument("--output", default=".", metavar="DIR", help="output directory for the exporter")
     parser.add_argument(
         "--option", action="append", type=_parse_option, metavar="KEY=VALUE",
         help="an exporter-specific option, may be given multiple times",

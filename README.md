@@ -44,8 +44,8 @@ is useful for validating one file in isolation, e.g. as a pre-commit or CI step.
 
 Installed exporter and importer plugins each become their own top-level subcommand
 automatically, named after whatever entry point name they registered under
-(`xactflow.exporters` / `xactflow.importers`), e.g. `xactflow html design.xml -o docs/` once a
-package like that is installed. XactFlow itself ships no exporters or importers; see
+(`xactflow.exporters` / `xactflow.importers`), e.g. `xactflow html design.xml --output docs/`
+once a package like that is installed. XactFlow itself ships no exporters or importers; see
 [Plugins](#plugins) below.
 
 An importer subcommand also accepts `--then <exporter-name>`, which hands its result straight to
@@ -78,7 +78,7 @@ design = ipxact.parse_file("path/to/top_design.xml")
 linked = link(design, library)
 
 linked.instances          # dict[str, LinkedInstance], keyed by instance name
-linked.interconnections   # list[LinkedInterconnection], every endpoint resolved
+linked.interconnections   # list[LinkedInterconnection], with the endpoints that resolved
 linked.diagnostics        # list[Diagnostic] from every applicable SCR rule
 ```
 
@@ -182,12 +182,24 @@ A plugin package registers itself in its own `pyproject.toml`:
 html = "xactflow_html:HtmlExporter"
 ```
 
+Available plugins, each in its own repository:
+
+| Package | Kind | Subcommand | What it does |
+|---|---|---|---|
+| [XactFlow-sv](https://github.com/IP-XACT/XactFlow-sv) | importer | `sv` | SystemVerilog module + metadata file → `ipxact.Component` |
+| [XactFlow-archidesc](https://github.com/IP-XACT/XactFlow-archidesc) | importer | `archidesc` | architecture description → `ipxact.Design` |
+| [XactFlow-component](https://github.com/IP-XACT/XactFlow-component) | exporter | `component` | `ipxact.Component` → IP-XACT component XML |
+| [XactFlow-design](https://github.com/IP-XACT/XactFlow-design) | exporter | `design` | `ipxact.Design` → IP-XACT design XML |
+
+The two exporters take a plain `ipxact.Component` / `ipxact.Design`, not a `LinkedDesign`, so
+they are used from Python or after an importer with `--then`.
+
 ## Known limitations
 
-- ** Using expression evaluation in SCR rules.** `xactflow.evaluate()`
+- **Expression evaluation is not used by SCR rules.** `xactflow.evaluate()`
   (see [Expression evaluation](#expression-evaluation) above) can compute a concrete value from
   an `Expression` string, but nothing in `xactflow.SCR` calls it yet, so the
-  overlap/alignment/stride SCRs, from having real check logic.
+  overlap/alignment/stride SCRs have no check logic.
 - **No multi-level design hierarchy.** `link()` resolves one `Design` flat, it does not
   recurse into a design nested inside another design's hierarchy. It will be supported in the future.
 - **No `DesignConfiguration` application.** A `DesignConfiguration` can be passed to `link()`
@@ -206,8 +218,7 @@ html = "xactflow_html:HtmlExporter"
   in `xactflow.evaluate()`.
 - Multi-level design hierarchy linking.
 - A better SCR coverage, especially for the single file and pre config ones.
-- The actual exporter and importer plugin packages (a linked design to RTL exporter, an IP-XACT-emitting
-  exporter (component & design), a SystemVerilog-with-metadata importer, etc.), each in its own repository per
+- More plugin packages (e.g. a linked design to RTL exporter), each in its own repository per
   [Plugins](#plugins) above.
 
 ## License
