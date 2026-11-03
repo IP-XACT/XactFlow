@@ -122,7 +122,10 @@ evaluate(register.size, resolve_parameter=resolve)  # an ipxact.Expression
 
 `resolve_parameter` maps an identifier referenced in the expression to that parameter's own
 (unevaluated) expression string, evaluated recursively; a circular reference raises
-`ExpressionError` instead of recursing forever. Scope, deliberately: integer and real
+`ExpressionError` instead of recursing forever. A value out of the `minimum`/`maximum` of its
+`Expression`, or of its `Parameter` when resolved through `parameter_resolver`, also raises
+`ExpressionError`, naming the parameter, or what `evaluate(..., name="register 'ctrl' size")`
+was told. Scope, deliberately: integer and real
 arithmetic, covering the address/size/width/offset math that is the overwhelming majority of
 real usage. String expressions and the IP-XACT-specific builtin functions
 (`$ipxact_index_value()`, `$ipxact_mode_condition()`, etc., used in mode conditions and packet

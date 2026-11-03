@@ -116,7 +116,7 @@ class _Parser:
     def __init__(
         self,
         tokens: List[_Token],
-        resolve_parameter: Optional[Callable[[str], str]],
+        resolve_parameter: Optional[Callable[[str], Union[str, "ipxact.Expression"]]],
         resolving: Set[str],
     ) -> None:
         self._tokens = tokens
@@ -217,7 +217,9 @@ class _Parser:
             raise ExpressionError(f"could not resolve parameter '{name}': {exc}") from exc
         self._resolving.add(name)
         try:
-            return evaluate(raw, self._resolve_parameter, _resolving=self._resolving)
+            return evaluate(
+                raw, self._resolve_parameter, name=f"parameter '{name}'", _resolving=self._resolving
+            )
         finally:
             self._resolving.discard(name)
 
@@ -283,37 +285,63 @@ class _Parser:
 
 def evaluate(
     expression: Union[str, "ipxact.Expression"],
-    resolve_parameter: Optional[Callable[[str], str]] = None,
+    resolve_parameter: Optional[Callable[[str], Union[str, "ipxact.Expression"]]] = None,
     *,
+    name: Optional[str] = None,
     _resolving: Optional[Set[str]] = None,
 ) -> Number:
     """Evaluate `expression` (an ipxact.Expression or its text) to a concrete int or float.
 
-    `resolve_parameter`, if given, maps a parameterId referenced by name in the expression to
-    that parameter's own (unevaluated) expression text, which is evaluated recursively; an
-    identifier with no resolver given, or one `resolve_parameter` does not recognize, raises
-    ExpressionError. A circular chain of parameter references raises ExpressionError instead of
-    recursing forever.
+    `resolve_parameter` maps a referenced parameterId to that parameter's expression, which is
+    evaluated recursively. An ipxact.Expression's minimum/maximum are checked against the
+    result. `name` (e.g. "register 'ctrl' size") is used in the out-of-bounds error message.
+    Any failure (unknown or circular reference, out of bounds, ...) raises ExpressionError.
     """
+    minimum = maximum = None
     if isinstance(expression, ipxact.Expression):
+        minimum, maximum = expression.minimum, expression.maximum
         expression = expression.value
     tokens = _tokenize(expression)
     parser = _Parser(tokens, resolve_parameter, _resolving if _resolving is not None else set())
-    return parser.parse()
+    value = parser.parse()
+    subject = f"{name} ({expression!r})" if name else repr(expression)
+    if minimum is not None and value < _parse_bound(subject, "minimum", minimum):
+        raise ExpressionError(f"{subject} evaluates to {value}, below its minimum {minimum}")
+    if maximum is not None and value > _parse_bound(subject, "maximum", maximum):
+        raise ExpressionError(f"{subject} evaluates to {value}, above its maximum {maximum}")
+    return value
 
 
-def parameter_resolver(parameters: Iterable["ipxact.Parameter"]) -> Callable[[str], str]:
+def _parse_bound(subject: str, which: str, bound: str) -> Number:
+    # xs:int on an expression element (simpleTypes.xsd), but on a parameter it has the
+    # parameter's own type, which may be real (commonStructures.xsd).
+    try:
+        return int(bound)
+    except ValueError:
+        pass
+    try:
+        return float(bound)
+    except ValueError:
+        raise ExpressionError(f"invalid {which} {bound!r} on {subject}") from None
+
+
+def parameter_resolver(parameters: Iterable["ipxact.Parameter"]) -> Callable[[str], "ipxact.Expression"]:
     """Build a resolve_parameter callback for evaluate() from a Component's/Design's own
     Parameter list, keyed by parameterId.
 
     A Parameter with no parameterId set is not resolvable by name from an expression (matches
     Annex C.6.2: parameterId is only required when the parameter's resolve is user/generated,
     or it is referenced from an expression, so a plain immediate-value parameter may not have
-    one at all).
+    one at all). A parameter's minimum/maximum are carried on the returned expression, so a
+    referenced parameter out of its bounds raises ExpressionError naming it.
     """
-    by_id = {p.parameter_id: p.value.value for p in parameters if p.parameter_id is not None}
+    by_id = {
+        p.parameter_id: ipxact.Expression(p.value.value, minimum=p.minimum, maximum=p.maximum)
+        for p in parameters
+        if p.parameter_id is not None
+    }
 
-    def resolve(name: str) -> str:
+    def resolve(name: str) -> "ipxact.Expression":
         if name not in by_id:
             raise ExpressionError(f"no parameter with parameterId {name!r} is available")
         return by_id[name]

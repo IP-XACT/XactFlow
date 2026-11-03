@@ -179,6 +179,52 @@ def test_expression_object_is_evaluated_from_its_value():
     assert evaluate(ipxact.Expression("WIDTH - 1"), resolve_parameter=lambda name: "8") == 7
 
 
+def test_expression_within_its_bounds_is_returned():
+    assert evaluate(ipxact.Expression("4 * 2", minimum="8", maximum="8")) == 8
+
+
+@pytest.mark.parametrize(
+    "expression, message",
+    [
+        (ipxact.Expression("2 + 1", minimum="4"), "below its minimum 4"),
+        (ipxact.Expression("2 * 8", maximum="15"), "above its maximum 15"),
+        (ipxact.Expression("1", minimum="one"), "invalid minimum 'one'"),
+    ],
+)
+def test_expression_out_of_its_bounds_raises(expression, message):
+    with pytest.raises(ExpressionError, match=message):
+        evaluate(expression)
+
+
+def test_out_of_bounds_error_names_the_expression():
+    with pytest.raises(ExpressionError, match=r"^register 'ctrl' size \('2 \* 8'\) evaluates to 16"):
+        evaluate(ipxact.Expression("2 * 8", maximum="15"), name="register 'ctrl' size")
+
+
+def _bounded_parameter(value, minimum=None, maximum=None):
+    return ipxact.Parameter(
+        name="width", value=ipxact.Expression(value), parameter_id="WIDTH", minimum=minimum, maximum=maximum
+    )
+
+
+def test_parameter_within_its_bounds_is_resolved():
+    resolve = parameter_resolver([_bounded_parameter("8", minimum="1", maximum="32")])
+    assert evaluate("WIDTH * 2", resolve_parameter=resolve) == 16
+
+
+@pytest.mark.parametrize(
+    "parameter, message",
+    [
+        (_bounded_parameter("0", minimum="1"), r"parameter 'WIDTH' \('0'\) evaluates to 0, below its minimum 1"),
+        (_bounded_parameter("64", maximum="32"), r"parameter 'WIDTH' \('64'\) evaluates to 64, above its maximum 32"),
+        (_bounded_parameter("2.5", maximum="2.0"), r"above its maximum 2.0"),
+    ],
+)
+def test_parameter_out_of_its_bounds_raises_naming_it(parameter, message):
+    with pytest.raises(ExpressionError, match=message):
+        evaluate("WIDTH * 2", resolve_parameter=parameter_resolver([parameter]))
+
+
 @pytest.mark.parametrize(
     "expression",
     [
