@@ -5,8 +5,9 @@ and semantic consistency checking, built on top of
 [`ipxact-compiler`](https://github.com/IP-XACT/ipxact-compiler) (a standalone single-file
 IP-XACT parser).
 
-`ipxact-compiler` parses one IP-XACT XML document into a Python object model and stops there,
-no cross-file resolution, no validation or further checking.
+`ipxact-compiler` parses one IP-XACT XML document into a Python object model, and can validate
+that one file against the official XSD, but stops there: no cross-file resolution or semantic
+checking.
 XactFlow is what consumes those parsed objects to do the higher-level work: resolving a
 `Design` (and its component instances, bus interfaces, and interconnections) against a library
 of `Component`/`BusDefinition`/`AbstractionDefinition` files into one combined, navigable
@@ -105,9 +106,9 @@ library.add_file("path/to/extra_component.xml")
 ## Expression evaluation
 
 IP-XACT `Expression` fields (`addressOffset`, `size`, `range`, `width`, `bitOffset`, parameter
-values, ...) are unevaluated strings in `ipxact-compiler`'s object model, using IEEE Std 1800
-(SystemVerilog) constant-expression syntax. `xactflow.evaluate()` computes
-their concrete value:
+values, ...) are `ipxact.Expression` objects in `ipxact-compiler`'s object model, whose `value`
+is the unevaluated text, using IEEE Std 1800 (SystemVerilog) constant-expression syntax.
+`xactflow.evaluate()` computes their concrete value, from an `Expression` or from its text:
 
 ```python
 from xactflow import evaluate, parameter_resolver
@@ -116,7 +117,7 @@ evaluate("2 + 3 * 4")                                       # 14
 evaluate("WIDTH - 1", resolve_parameter=lambda name: "8")   # 7
 
 resolve = parameter_resolver(component.parameters)  # keyed by parameterId
-evaluate("WIDTH * BYTES_PER_WORD", resolve_parameter=resolve)
+evaluate(register.size, resolve_parameter=resolve)  # an ipxact.Expression
 ```
 
 `resolve_parameter` maps an identifier referenced in the expression to that parameter's own

@@ -14,7 +14,7 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "ipxact-compiler>=0.1.2",
+    "ipxact-compiler>=0.2.0",
     "lxml",
 ]
 keywords = [

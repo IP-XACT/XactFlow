@@ -1,10 +1,10 @@
 """Evaluates IEEE 1685-2022 IP-XACT expressions.
 
 IP-XACT expression fields (addressOffset, size, range, width, bitOffset, parameter values,
-...) hold raw, unevaluated strings, ipxact-compiler deliberately leaves them as such
-(Expression = str, which defines each expression "type" purely as a result-type/range constraint).
-This module is XactFlow's evaluator for that syntax: given an expression string, and
-optionally a way to resolve a parameterId referenced within it, compute its concrete value.
+...) are ipxact.Expression objects whose `value` is the raw, unevaluated text; ipxact-compiler
+deliberately leaves them unevaluated. This module is XactFlow's evaluator for that syntax:
+given an expression (an ipxact.Expression or its text), and optionally a way to resolve a
+parameterId referenced within it, compute its concrete value.
 
 Scope: integer and real (floating-point) arithmetic, matching what address/size/
 width/offset expressions actually need. String expressions (ipxact:stringExpression and SV
@@ -282,19 +282,21 @@ class _Parser:
 
 
 def evaluate(
-    expression: str,
+    expression: Union[str, "ipxact.Expression"],
     resolve_parameter: Optional[Callable[[str], str]] = None,
     *,
     _resolving: Optional[Set[str]] = None,
 ) -> Number:
-    """Evaluate `expression` to a concrete int or float.
+    """Evaluate `expression` (an ipxact.Expression or its text) to a concrete int or float.
 
     `resolve_parameter`, if given, maps a parameterId referenced by name in the expression to
-    that parameter's own (unevaluated) Expression string, which is evaluated recursively; an
+    that parameter's own (unevaluated) expression text, which is evaluated recursively; an
     identifier with no resolver given, or one `resolve_parameter` does not recognize, raises
     ExpressionError. A circular chain of parameter references raises ExpressionError instead of
     recursing forever.
     """
+    if isinstance(expression, ipxact.Expression):
+        expression = expression.value
     tokens = _tokenize(expression)
     parser = _Parser(tokens, resolve_parameter, _resolving if _resolving is not None else set())
     return parser.parse()
@@ -309,7 +311,7 @@ def parameter_resolver(parameters: Iterable["ipxact.Parameter"]) -> Callable[[st
     or it is referenced from an expression, so a plain immediate-value parameter may not have
     one at all).
     """
-    by_id = {p.parameter_id: p.value for p in parameters if p.parameter_id is not None}
+    by_id = {p.parameter_id: p.value.value for p in parameters if p.parameter_id is not None}
 
     def resolve(name: str) -> str:
         if name not in by_id:

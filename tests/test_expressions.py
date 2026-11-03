@@ -164,14 +164,19 @@ def test_identifier_without_a_resolver_raises():
 
 def test_parameter_resolver_builds_a_callback_from_a_parameter_list():
     parameters = [
-        ipxact.Parameter(name="width", value="8", parameter_id="WIDTH"),
-        ipxact.Parameter(name="unnamed", value="99"),  # no parameterId: not resolvable by name
+        ipxact.Parameter(name="width", value=ipxact.Expression("8"), parameter_id="WIDTH"),
+        # no parameterId: not resolvable by name
+        ipxact.Parameter(name="unnamed", value=ipxact.Expression("99")),
     ]
     resolve = parameter_resolver(parameters)
 
     assert evaluate("WIDTH * 4", resolve_parameter=resolve) == 32
     with pytest.raises(ExpressionError, match="no parameter"):
         evaluate("unnamed", resolve_parameter=resolve)
+
+
+def test_expression_object_is_evaluated_from_its_value():
+    assert evaluate(ipxact.Expression("WIDTH - 1"), resolve_parameter=lambda name: "8") == 7
 
 
 @pytest.mark.parametrize(
