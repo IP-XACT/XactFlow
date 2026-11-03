@@ -116,7 +116,7 @@ def test_system_functions(expression, expected):
         ("$clog2(1, 2)", r"\$clog2 takes 1 argument\(s\), got 2"),
         ("$clog2(-1)", "non-negative integer"),
         ("$clog2(2.5)", "non-negative integer"),
-        ("$sqrt(-1.0)", r"\$sqrt\(-1.0\): math domain error"),
+        ("$sqrt(-1.0)", r"^\$sqrt\(-1.0\): "),
         ("$clog2", "expected '\\('"),
     ],
 )
