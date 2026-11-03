@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Type
 
@@ -232,9 +233,15 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     _add_builtin_subparsers(subparsers)
 
+    with warnings.catch_warnings(record=True) as discovery_warnings:
+        exporters = discover_exporters()
+        importers = discover_importers()
+    for warning in discovery_warnings:
+        print(f"warning: {warning.message}", file=sys.stderr)
+
     registered_names = set(_BUILTIN_COMMANDS)
     registered_exporters: Dict[str, Type[Exporter]] = {}
-    for name, exporter_class in sorted(discover_exporters().items()):
+    for name, exporter_class in sorted(exporters.items()):
         if name in registered_names:
             print(
                 f"warning: exporter '{name}' conflicts with an existing xactflow subcommand, skipping",
@@ -245,7 +252,7 @@ def _build_parser() -> argparse.ArgumentParser:
         registered_names.add(name)
         registered_exporters[name] = exporter_class
 
-    for name, importer_class in sorted(discover_importers().items()):
+    for name, importer_class in sorted(importers.items()):
         if name in registered_names:
             print(
                 f"warning: importer '{name}' conflicts with an existing xactflow subcommand, skipping",

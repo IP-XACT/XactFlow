@@ -59,14 +59,34 @@ def test_discover_importers_returns_registered_subclasses(monkeypatch):
     assert importers == {"fake": _FakeImporter}
 
 
-def test_discover_importers_rejects_entry_point_that_is_not_an_importer(monkeypatch):
+class _FailingEntryPoint:
+    def __init__(self, name):
+        self.name = name
+
+    def load(self):
+        raise ImportError("No module named 'missing_plugin'")
+
+
+def test_discover_importers_skips_entry_point_that_is_not_an_importer(monkeypatch):
     def fake_entry_points_for_group(group):
-        return [_FakeEntryPoint("bad", _NotAnImporter)]
+        return [_FakeEntryPoint("bad", _NotAnImporter), _FakeEntryPoint("fake", _FakeImporter)]
 
     monkeypatch.setattr("xactflow.importer._entry_points_for_group", fake_entry_points_for_group)
 
-    with pytest.raises(TypeError):
-        discover_importers()
+    with pytest.warns(UserWarning, match="skipping entry point 'bad'.*not resolve to an Importer subclass"):
+        importers = discover_importers()
+    assert importers == {"fake": _FakeImporter}
+
+
+def test_discover_importers_skips_entry_point_that_fails_to_load(monkeypatch):
+    def fake_entry_points_for_group(group):
+        return [_FailingEntryPoint("broken"), _FakeEntryPoint("fake", _FakeImporter)]
+
+    monkeypatch.setattr("xactflow.importer._entry_points_for_group", fake_entry_points_for_group)
+
+    with pytest.warns(UserWarning, match="skipping entry point 'broken'.*No module named 'missing_plugin'"):
+        importers = discover_importers()
+    assert importers == {"fake": _FakeImporter}
 
 
 def test_discover_importers_returns_empty_dict_when_none_installed(monkeypatch):

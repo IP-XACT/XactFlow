@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import sys
+import warnings
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Dict, Type
@@ -46,25 +47,29 @@ def _entry_points_for_group(group: str):
 
 
 def discover_exporters() -> Dict[str, Type[Exporter]]:
-    """Find every Exporter subclass registered by an installed package.
-
-    Third-party packages register under the "xactflow.exporters" entry point group, e.g. in
-    their own pyproject.toml:
+    """Find every Exporter subclass registered under the "xactflow.exporters" entry point group:
 
         [project.entry-points."xactflow.exporters"]
-        html = "xactflow_html:HtmlExporter"
+        component = "xactflow_component:ComponentExporter"
 
-    Returns a dict keyed by entry point name (e.g. "html"), not by Exporter.name: two installed
-    packages could otherwise collide on that class attribute, and the entry point name is what a
-    caller (e.g. the CLI) asks the user for.
+    Keyed by entry point name (e.g. "component"), the name the CLI uses, not by Exporter.name.
+    An entry point that fails to load, or is not an Exporter subclass, is skipped with a warning.
     """
     exporters: Dict[str, Type[Exporter]] = {}
     for entry_point in _entry_points_for_group(_ENTRY_POINT_GROUP):
-        exporter_class = entry_point.load()
-        if not (isinstance(exporter_class, type) and issubclass(exporter_class, Exporter)):
-            raise TypeError(
-                f"entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}' does not "
-                f"resolve to an Exporter subclass: {exporter_class!r}"
+        try:
+            exporter_class = entry_point.load()
+        except Exception as exc:
+            warnings.warn(
+                f"skipping entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}': "
+                f"failed to load: {exc}"
             )
+            continue
+        if not (isinstance(exporter_class, type) and issubclass(exporter_class, Exporter)):
+            warnings.warn(
+                f"skipping entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}': "
+                f"does not resolve to an Exporter subclass: {exporter_class!r}"
+            )
+            continue
         exporters[entry_point.name] = exporter_class
     return exporters

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import sys
+import warnings
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Dict, Type
@@ -35,26 +36,29 @@ def _entry_points_for_group(group: str):
 
 
 def discover_importers() -> Dict[str, Type[Importer]]:
-    """Find every Importer subclass registered by an installed package.
-
-    Mirrors exporter.discover_exporters(): third-party packages register under the
-    "xactflow.importers" entry point group, e.g. in their own pyproject.toml:
+    """Find every Importer subclass registered under the "xactflow.importers" entry point group:
 
         [project.entry-points."xactflow.importers"]
-        annotated-sv = "xactflow_sv_importer:AnnotatedSVImporter"
+        sv = "xactflow_sv:SVImporter"
 
-    Returns a dict keyed by entry point name (e.g. "annotated-sv"), not by Importer.name, for
-    the same reason as discover_exporters(): two installed packages could otherwise collide on
-    that class attribute, and the entry point name is what a caller (e.g. the CLI) asks the user
-    for.
+    Keyed by entry point name (e.g. "sv"), the name the CLI uses, not by Importer.name. An
+    entry point that fails to load, or is not an Importer subclass, is skipped with a warning.
     """
     importers: Dict[str, Type[Importer]] = {}
     for entry_point in _entry_points_for_group(_ENTRY_POINT_GROUP):
-        importer_class = entry_point.load()
-        if not (isinstance(importer_class, type) and issubclass(importer_class, Importer)):
-            raise TypeError(
-                f"entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}' does not "
-                f"resolve to an Importer subclass: {importer_class!r}"
+        try:
+            importer_class = entry_point.load()
+        except Exception as exc:
+            warnings.warn(
+                f"skipping entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}': "
+                f"failed to load: {exc}"
             )
+            continue
+        if not (isinstance(importer_class, type) and issubclass(importer_class, Importer)):
+            warnings.warn(
+                f"skipping entry point '{entry_point.name}' in group '{_ENTRY_POINT_GROUP}': "
+                f"does not resolve to an Importer subclass: {importer_class!r}"
+            )
+            continue
         importers[entry_point.name] = importer_class
     return importers

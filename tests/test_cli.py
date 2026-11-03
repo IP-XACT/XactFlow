@@ -99,15 +99,21 @@ def test_a_broken_installed_plugin_does_not_crash_unrelated_commands(monkeypatch
     # discover_exporters()/discover_importers() run during _build_parser(), before any
     # subcommand is even chosen, so a plugin that fails to load must not crash commands (like
     # check, used here) that have nothing to do with that plugin.
-    def broken_discover_exporters():
-        raise ImportError("no module named 'xactflow_broken_plugin'")
+    class _BrokenEntryPoint:
+        name = "broken"
 
-    monkeypatch.setattr("xactflow.cli.discover_exporters", broken_discover_exporters)
+        def load(self):
+            raise ImportError("No module named 'xactflow_broken_plugin'")
+
+    monkeypatch.setattr("xactflow.exporter._entry_points_for_group", lambda group: [_BrokenEntryPoint()])
 
     exit_code = main(["check", str(FIXTURES / "basic" / "top_design.xml")])
 
-    assert exit_code == 1
-    assert capsys.readouterr().err.startswith("error: ")
+    assert exit_code == 0
+    assert capsys.readouterr().err == (
+        "warning: skipping entry point 'broken' in group 'xactflow.exporters': "
+        "failed to load: No module named 'xactflow_broken_plugin'\n"
+    )
 
 
 def test_no_plugin_subcommands_when_none_are_installed(capsys):

@@ -186,6 +186,9 @@ A plugin package registers itself in its own `pyproject.toml`:
 html = "xactflow_html:HtmlExporter"
 ```
 
+An entry point that fails to load, or is not an `Exporter`/`Importer` subclass, is skipped with a
+warning naming it; the other plugins and the built-in commands keep working.
+
 Available plugins, each in its own repository:
 
 | Package | Kind | Subcommand | What it does |

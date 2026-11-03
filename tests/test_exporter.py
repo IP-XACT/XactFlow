@@ -75,14 +75,34 @@ def test_discover_exporters_returns_registered_subclasses(monkeypatch):
     assert exporters == {"fake": _FakeExporter}
 
 
-def test_discover_exporters_rejects_entry_point_that_is_not_an_exporter(monkeypatch):
+class _FailingEntryPoint:
+    def __init__(self, name):
+        self.name = name
+
+    def load(self):
+        raise ImportError("No module named 'missing_plugin'")
+
+
+def test_discover_exporters_skips_entry_point_that_is_not_an_exporter(monkeypatch):
     def fake_entry_points_for_group(group):
-        return [_FakeEntryPoint("bad", _NotAnExporter)]
+        return [_FakeEntryPoint("bad", _NotAnExporter), _FakeEntryPoint("fake", _FakeExporter)]
 
     monkeypatch.setattr("xactflow.exporter._entry_points_for_group", fake_entry_points_for_group)
 
-    with pytest.raises(TypeError):
-        discover_exporters()
+    with pytest.warns(UserWarning, match="skipping entry point 'bad'.*not resolve to an Exporter subclass"):
+        exporters = discover_exporters()
+    assert exporters == {"fake": _FakeExporter}
+
+
+def test_discover_exporters_skips_entry_point_that_fails_to_load(monkeypatch):
+    def fake_entry_points_for_group(group):
+        return [_FailingEntryPoint("broken"), _FakeEntryPoint("fake", _FakeExporter)]
+
+    monkeypatch.setattr("xactflow.exporter._entry_points_for_group", fake_entry_points_for_group)
+
+    with pytest.warns(UserWarning, match="skipping entry point 'broken'.*No module named 'missing_plugin'"):
+        exporters = discover_exporters()
+    assert exporters == {"fake": _FakeExporter}
 
 
 def test_discover_exporters_returns_empty_dict_when_none_installed(monkeypatch):
