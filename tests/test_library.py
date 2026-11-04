@@ -170,6 +170,26 @@ def test_other_ipxact_version_is_skipped_with_a_warning(tmp_path):
     assert any(d.location == str(tmp_path) for d in library.diagnostics)
 
 
+def test_ipxact_file_that_is_not_well_formed_xml_is_skipped_with_a_warning(tmp_path):
+    (tmp_path / "typo.xml").write_text(_DESIGN_XML.replace("</ipxact:name>", "</ipxact:nam>"))
+
+    library = Library.scan(FIXTURES / "basic", tmp_path)
+
+    skipped = [d for d in library.diagnostics if d.location == str(tmp_path / "typo.xml")]
+    assert len(skipped) == 1
+    assert skipped[0].severity is Severity.WARNING
+    assert skipped[0].message.startswith(f"skipped {tmp_path / 'typo.xml'}: not well-formed XML: ")
+
+
+@pytest.mark.parametrize("xml", ["<config><a></config>", _IPXACT_2014_XML.replace("</ipxact:name>", "</ipxact:nam>")])
+def test_other_file_that_is_not_well_formed_xml_is_skipped_silently(tmp_path, xml):
+    (tmp_path / "other.xml").write_text(xml)
+
+    library = Library.scan(FIXTURES / "basic", tmp_path)
+
+    assert not any(d.location == str(tmp_path / "other.xml") for d in library.diagnostics)
+
+
 def _component(name):
     return ipxact.Component(vlnv=ipxact.VLNV("example.org", "ip", name, "1.0"))
 

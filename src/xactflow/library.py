@@ -128,13 +128,22 @@ class Library:
     def _parse_file(self, path: Path) -> Optional[object]:
         """Parse one file into an IP-XACT 1685-2022 document, or return None if it is not one.
 
-        Other IP-XACT versions and parse failures are recorded as warnings; XML that is not
-        IP-XACT at all is skipped silently.
+        IP-XACT 1685-2022 files that are not well-formed or fail to parse, and files of another
+        IP-XACT version, are recorded as warnings; any other file is skipped silently.
         """
         try:
             root = etree.parse(str(path), parser=_XML_PARSER).getroot()
-        except etree.XMLSyntaxError:
-            return None  # not well-formed XML at all, not ours to report on.
+        except etree.XMLSyntaxError as exc:
+            if _IPXACT_NAMESPACE.encode() not in path.read_bytes():
+                return None  # not an IP-XACT 1685-2022 file, not ours to report on.
+            self.diagnostics.append(
+                Diagnostic(
+                    message=f"skipped {path}: not well-formed XML: {exc}",
+                    severity=Severity.WARNING,
+                    location=str(path),
+                )
+            )
+            return None
 
         namespace = etree.QName(root).namespace
         if namespace != _IPXACT_NAMESPACE:
