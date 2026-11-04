@@ -48,6 +48,8 @@ class Library:
 
     entries: "dict[ipxact.VLNV, LibraryEntry]" = field(default_factory=dict)
     diagnostics: "list[Diagnostic]" = field(default_factory=list)
+    # Resolved paths of the files already read, so overlapping roots read each file once.
+    _read_files: "set[Path]" = field(default_factory=set, init=False, repr=False)
 
     @classmethod
     def scan(cls, *roots: Union[str, Path]) -> "Library":
@@ -104,14 +106,22 @@ class Library:
         return True
 
     def add_file(self, path: Union[str, Path], *, replace: bool = False) -> bool:
-        """Parse one IP-XACT file and index it, with the namespace filtering and parse-failure warnings.
+        """Parse one file and index it, with the same checks as scan. A file already read, by any
+        path, is skipped unless replace=True.
 
-        Returns True if the document was indexed, False if it was skipped, failed to parse, or was
-        rejected as a duplicate.
+        Returns True if the file's document is in the library, False if the file is not IP-XACT
+        1685-2022, fails to parse, or has a duplicate VLNV.
         """
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"library file does not exist: {path}")
+        resolved = path.resolve()
+        if resolved in self._read_files and not replace:
+            return any(
+                entry.path is not None and entry.path.resolve() == resolved
+                for entry in self.entries.values()
+            )
+        self._read_files.add(resolved)
         document = self._parse_file(path)
         return document is not None and self.add(document, path, replace=replace)
 

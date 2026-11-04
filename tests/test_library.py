@@ -234,9 +234,50 @@ def test_add_file_indexes_one_file():
 def test_add_file_duplicate_vlnv_is_an_scr_1_1_error():
     library = Library.scan(FIXTURES / "basic")
 
-    assert library.add_file(FIXTURES / "basic" / "top_design.xml") is False
+    assert library.add_file(FIXTURES / "duplicate" / "initiator_comp_copy.xml") is False
 
     assert len([d for d in library.diagnostics if d.rule_id == "SCR 1.1"]) == 1
+
+
+@pytest.mark.parametrize(
+    "roots",
+    [
+        [FIXTURES / "basic", FIXTURES / "basic"],
+        [FIXTURES, FIXTURES / "basic"],  # overlapping roots
+        [FIXTURES / "basic", FIXTURES / "duplicate" / ".." / "basic"],
+    ],
+)
+def test_a_file_found_under_several_roots_is_read_once(roots):
+    # same result as scanning the first root alone: no SCR 1.1 of a file against itself, and no
+    # "nothing indexed" warning for a root whose files were all read already.
+    library = Library.scan(*roots)
+    first_root_only = Library.scan(roots[0])
+
+    assert library.diagnostics == first_root_only.diagnostics
+    assert library.entries.keys() == first_root_only.entries.keys()
+
+
+def test_add_file_of_a_file_already_read_does_nothing():
+    library = Library.scan(FIXTURES / "basic")
+    diagnostics = list(library.diagnostics)
+
+    assert library.add_file(FIXTURES / "basic" / "top_design.xml") is True
+    assert library.add_file(FIXTURES / "basic" / "../basic/top_design.xml") is True
+
+    assert library.diagnostics == diagnostics
+
+
+def test_add_file_with_replace_reads_the_file_again(tmp_path):
+    path = tmp_path / "design.xml"
+    path.write_text(_DESIGN_XML)
+    library = Library()
+    library.add_file(path)
+
+    path.write_text(_DESIGN_XML.replace("</ipxact:version>", "</ipxact:version><ipxact:description>v2</ipxact:description>"))
+    assert library.add_file(path, replace=True) is True
+
+    assert library.get_design(ipxact.VLNV.parse("example.org:soc:dup:1.0")).description == "v2"
+    assert library.diagnostics == []
 
 
 def test_add_file_applies_the_same_namespace_filtering_as_scan(tmp_path):
