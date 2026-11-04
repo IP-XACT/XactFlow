@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, List, Optional
 
 import ipxact
 
 from .. import SCR
+from ..diagnostics import Diagnostic, Severity
 from ..library import Library
 from .model import (
     LinkedDesign,
@@ -54,12 +55,25 @@ def link(
 
 
 def _resolve_instances(linked: LinkedDesign) -> None:
+    instance_refs: Dict[str, List[ipxact.ComponentInstance]] = {}
     for instance_ref in linked.design.component_instances:
+        instance_refs.setdefault(instance_ref.instance_name, []).append(instance_ref)
+
+    for name, (instance_ref, *duplicates) in instance_refs.items():
+        if duplicates:
+            linked.diagnostics.append(
+                Diagnostic(
+                    message=f"instanceName '{name}' is used by {1 + len(duplicates)} "
+                    f"componentInstance elements",
+                    severity=Severity.ERROR,
+                    location=f"{linked.vlnv}/{name}",
+                )
+            )
         component = linked.library.get_component(instance_ref.component_ref.vlnv)
         if component is None:
             continue  # scr.rules._check_component_ref_is_component (SCR 1.9) reports why
-        linked.instances[instance_ref.instance_name] = LinkedInstance(
-            instance_name=instance_ref.instance_name,
+        linked.instances[name] = LinkedInstance(
+            instance_name=name,
             component=component,
             component_vlnv=instance_ref.component_ref.vlnv,
             source=instance_ref,

@@ -45,12 +45,9 @@ stub(
 )
 def _check_component_ref_is_component(linked: "LinkedDesign") -> Iterator[Diagnostic]:
     for instance_ref in linked.design.component_instances:
-        resolved = linked.instances.get(instance_ref.instance_name)
-        # Identity, not just name presence: two componentInstance elements can share a name,
-        # linked.instances only has room for one entry per name.
-        if resolved is not None and resolved.source is instance_ref:
-            continue
         vlnv = instance_ref.component_ref.vlnv
+        if linked.library.get_component(vlnv) is not None:
+            continue
         existing = linked.library.get(vlnv)
         if existing is None:
             detail = f"no document with VLNV {vlnv} was found in the library"

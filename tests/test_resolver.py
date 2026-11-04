@@ -69,10 +69,23 @@ def test_scr_2_1_reports_a_component_instance_ref_missing_from_the_design():
     assert "'typo0' does not resolve to a component instance" in scr_2_1[0].message
 
 
-def test_scr_1_9_still_fires_when_a_duplicate_instance_name_already_resolved():
-    # Two componentInstance elements sharing a name, one resolving and one not: linked
-    # .instances only has room for one entry per name, so SCR 1.9's check must not use bare
-    # name-presence as a stand-in for "did *this* instance_ref resolve".
+def test_duplicate_instance_names_are_one_error_and_the_first_instance_is_linked():
+    library = Library.scan(FIXTURES / "basic")
+    design = _load_top_design(library)
+    first, second = design.component_instances
+    second.instance_name = first.instance_name
+
+    linked = link(design, library)
+
+    assert [d.message for d in linked.diagnostics if d.rule_id is None] == [
+        "instanceName 'init0' is used by 2 componentInstance elements"
+    ]
+    assert not any(d.rule_id == "SCR 1.9" for d in linked.diagnostics)
+    assert linked.instances["init0"].source is first
+
+
+def test_scr_1_9_still_fires_for_a_duplicate_instance_name():
+    # SCR 1.9 checks each componentInstance's componentRef, whatever its name.
     library = Library.scan(FIXTURES / "basic")
     design = _load_top_design(library)
     good_ref = design.component_instances[0].component_ref
