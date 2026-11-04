@@ -100,6 +100,16 @@ def _resolve_interconnections(linked: LinkedDesign) -> None:
             interconnection.active_interface,
             *interconnection.other_active_interfaces,
         ]
+        interfaces = [(ai.component_instance_ref, ai.bus_ref) for ai in active_interfaces]
+        for instance_ref, bus_ref in dict.fromkeys(i for i in interfaces if interfaces.count(i) > 1):
+            linked.diagnostics.append(
+                Diagnostic(
+                    message=f"interconnection '{interconnection.name}' connects component instance "
+                    f"'{instance_ref}' bus interface '{bus_ref}' to itself",
+                    severity=Severity.ERROR,
+                    location=f"{linked.vlnv}/{interconnection.name}",
+                )
+            )
         endpoints = [
             _resolve_bus_interface_endpoint(
                 linked, ai.component_instance_ref, ai.bus_ref, ai

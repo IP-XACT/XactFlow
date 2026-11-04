@@ -222,6 +222,29 @@ def test_scr_2_3_reports_an_interface_connected_twice_within_one_design():
     assert "conn0" in scr_2_3[0].message and "conn1" in scr_2_3[0].message
 
 
+def test_an_interface_connected_to_itself_is_reported_by_link_not_scr_2_3():
+    a_vlnv = ipxact.VLNV("example.org", "ip", "a", "1.0")
+    b_vlnv = ipxact.VLNV("example.org", "ip", "b", "1.0")
+    a = _component(a_vlnv, _bus_interface("bif", BUS_A, ipxact.InterfaceMode.INITIATOR))
+    b = _component(b_vlnv, _bus_interface("bif", BUS_A, ipxact.InterfaceMode.TARGET))
+    design = _design(
+        ipxact.VLNV("example.org", "soc", "top", "1.0"),
+        [_instance("a0", a_vlnv), _instance("b0", b_vlnv)],
+        [
+            _interconnection("loop", _active_interface("a0", "bif"), _active_interface("a0", "bif")),
+            _interconnection("conn0", _active_interface("a0", "bif"), _active_interface("b0", "bif")),
+        ],
+    )
+
+    linked = link(design, _make_library(_bus_definition(BUS_A), a, b))
+
+    scr_2_3 = [d.message for d in linked.diagnostics if d.rule_id == "SCR 2.3"]
+    assert scr_2_3 == ["component instance 'a0' bus interface 'bif' appears in more than one interconnection: loop, conn0"]
+    assert [d.message for d in linked.diagnostics if d.rule_id is None] == [
+        "interconnection 'loop' connects component instance 'a0' bus interface 'bif' to itself"
+    ]
+
+
 def test_scr_2_4_reports_initiator_connected_to_initiator():
     a_vlnv = ipxact.VLNV("example.org", "ip", "a", "1.0")
     b_vlnv = ipxact.VLNV("example.org", "ip", "b", "1.0")

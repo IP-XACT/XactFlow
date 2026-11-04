@@ -7,7 +7,7 @@ SCR.all_rules(), with no check logic yet.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Iterator, List, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Iterator, Set, Tuple
 
 import ipxact
 
@@ -149,11 +149,11 @@ def _check_interconnection_bus_compat(linked: "LinkedDesign") -> Iterator[Diagno
 def _check_interface_connected_once(document: object) -> Iterator[Diagnostic]:
     if not isinstance(document, ipxact.Design):
         return
-    seen: Dict[Tuple[str, str], List[str]] = {}
+    seen: Dict[Tuple[str, str], Dict[str, None]] = {}
     for interconnection in document.interconnections:
         for active_interface in _active_interfaces(interconnection):
             key = (active_interface.component_instance_ref, active_interface.bus_ref)
-            seen.setdefault(key, []).append(interconnection.name)
+            seen.setdefault(key, {})[interconnection.name] = None
     for (instance_ref, bus_ref), interconnection_names in seen.items():
         if len(interconnection_names) > 1:
             yield Diagnostic(
