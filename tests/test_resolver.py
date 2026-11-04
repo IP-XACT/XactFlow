@@ -49,13 +49,24 @@ def test_link_reports_unresolvable_component_ref():
     assert len(scr_1_9) == 1
     assert "does_not_exist" in scr_1_9[0].message or "init0" in scr_1_9[0].message
 
-    # the interconnection keeps whatever endpoints did resolve (here, just tgt0; init0's
-    # endpoint fails since its componentRef is now broken), and SCR 2.1 reports why.
+    # the interconnection keeps its resolved endpoint, tgt0. init0 is in the design, only its
+    # component is missing: SCR 1.9 reports it, not SCR 2.1.
     assert len(linked.interconnections) == 1
     resolved_names = {e.instance.instance_name for e in linked.interconnections[0].endpoints}
     assert resolved_names == {"tgt0"}
+    assert not any(d.rule_id == "SCR 2.1" for d in linked.diagnostics)
+
+
+def test_scr_2_1_reports_a_component_instance_ref_missing_from_the_design():
+    library = Library.scan(FIXTURES / "basic")
+    design = _load_top_design(library)
+    design.interconnections[0].active_interface.component_instance_ref = "typo0"
+
+    linked = link(design, library)
+
     scr_2_1 = [d for d in linked.diagnostics if d.rule_id == "SCR 2.1"]
     assert len(scr_2_1) == 1
+    assert "'typo0' does not resolve to a component instance" in scr_2_1[0].message
 
 
 def test_scr_1_9_still_fires_when_a_duplicate_instance_name_already_resolved():

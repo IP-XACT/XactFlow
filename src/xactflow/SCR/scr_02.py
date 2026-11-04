@@ -69,10 +69,13 @@ def _bus_definitions_compatible(a: ipxact.VLNV, b: ipxact.VLNV, library) -> bool
     ),
 )
 def _check_active_interfaces_exist(linked: "LinkedDesign") -> Iterator[Diagnostic]:
+    design_instance_names = {instance.instance_name for instance in linked.design.component_instances}
     for interconnection in linked.design.interconnections:
         for active_interface in _active_interfaces(interconnection):
             instance = linked.instances.get(active_interface.component_instance_ref)
             if instance is None:
+                if active_interface.component_instance_ref in design_instance_names:
+                    continue 
                 yield Diagnostic(
                     message=(
                         f"interconnection '{interconnection.name}' activeInterface "
