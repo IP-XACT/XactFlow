@@ -89,6 +89,25 @@ def test_scr_1_2_reports_unresolvable_bus_type():
     assert "bif" in scr_1_2[0].message
 
 
+def test_scr_1_2_is_reported_once_per_component_not_per_instance():
+    component_vlnv = ipxact.VLNV("example.org", "ip", "orphan", "1.0")
+    bus_interface = _bus_interface("bif", BUS_A, ipxact.InterfaceMode.INITIATOR)
+    bus_interface.abstraction_types = [
+        ipxact.AbstractionType(abstraction_ref=ipxact.VLNVRef("example.org", "bus", "missing_rtl", "1.0"))
+    ]
+    library = _make_library(_component(component_vlnv, bus_interface))
+
+    design = _design(
+        ipxact.VLNV("example.org", "soc", "top", "1.0"),
+        [_instance(name, component_vlnv) for name in ("u0", "u1", "u2")],
+        [],
+    )
+    linked = link(design, library)
+
+    scr_1_2 = [d for d in linked.diagnostics if d.rule_id == "SCR 1.2"]
+    assert [d.location for d in scr_1_2] == ["example.org:ip:orphan:1.0/bif"] * 2  # busType, abstractionRef
+
+
 def test_scr_2_1_reports_bus_ref_typo_on_an_otherwise_resolved_instance():
     a_vlnv = ipxact.VLNV("example.org", "ip", "a", "1.0")
     b_vlnv = ipxact.VLNV("example.org", "ip", "b", "1.0")

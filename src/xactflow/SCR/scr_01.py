@@ -78,8 +78,10 @@ def _check_component_ref_is_component(linked: "LinkedDesign") -> Iterator[Diagno
     ),
 )
 def _check_bus_interface_vlnv_refs_exist(linked: "LinkedDesign") -> Iterator[Diagnostic]:
-    for instance in linked.instances.values():
-        for bus_interface in instance.component.bus_interfaces:
+    # once per component, not per instance: the reference is in the component's file.
+    components = {instance.component_vlnv: instance.component for instance in linked.instances.values()}
+    for component_vlnv, component in components.items():
+        for bus_interface in component.bus_interfaces:
             bus_vlnv = bus_interface.bus_type.vlnv
             if linked.library.get_bus_definition(bus_vlnv) is None:
                 yield Diagnostic(
@@ -88,7 +90,7 @@ def _check_bus_interface_vlnv_refs_exist(linked: "LinkedDesign") -> Iterator[Dia
                         f"{bus_vlnv}, which does not resolve to a busDefinition in the library"
                     ),
                     severity=Severity.ERROR,
-                    location=f"{instance.instance_name}/{bus_interface.name}",
+                    location=f"{component_vlnv}/{bus_interface.name}",
                     rule_id="SCR 1.2",
                     rule_name="anyVLNVRefMustExist",
                 )
@@ -102,7 +104,7 @@ def _check_bus_interface_vlnv_refs_exist(linked: "LinkedDesign") -> Iterator[Dia
                             f"abstractionDefinition in the library"
                         ),
                         severity=Severity.ERROR,
-                        location=f"{instance.instance_name}/{bus_interface.name}",
+                        location=f"{component_vlnv}/{bus_interface.name}",
                         rule_id="SCR 1.2",
                         rule_name="anyVLNVRefMustExist",
                     )
