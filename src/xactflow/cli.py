@@ -80,16 +80,62 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def _describe_targets(library: Library) -> str:
+    """e.g. "Component 'a:b:c:1.0', Design 'a:b:top:1.0'"."""
+    return ", ".join(f"{type(document).__name__} '{document.vlnv}'" for document in library.targets())
+
+
+def _export(
+    exporter_name: str,
+    exporter_class: Type[Exporter],
+    library: Library,
+    output: str,
+    options: Dict[str, str],
+    what: str,
+) -> bool:
+    """Run one exporter on the library, printing a one-line message naming the exporter and
+    `what` it was exporting if it fails. Exporter.export()'s documented convention is to signal
+    that the library holds no target it supports with a plain TypeError (see exporter.py), which
+    gets the precise "cannot export" message below; a non-compliant exporter raising something
+    else still gets a contextualized message rather than main()'s bare "error: ..." fallback.
+    """
+    try:
+        exporter_class().export(library, Path(output), **options)
+    except TypeError as exc:
+        print(f"'{exporter_name}' cannot export {what} ({_describe_targets(library)}): {exc}", file=sys.stderr)
+        return False
+    except Exception as exc:
+        print(
+            f"'{exporter_name}' failed while exporting {what} ({_describe_targets(library)}): {exc}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def _cmd_run_exporter(args: argparse.Namespace) -> int:
-    linked, diagnostics = _link_from_args(args)
+    library = Library.scan(*args.lib)
+    added = library.add_file(args.file, target=True)
+    if args.config:
+        added &= library.add_file(args.config, target=True)
+    diagnostics = list(library.diagnostics)
+    # A design is linked first, so a broken one is reported here rather than half-exported.
+    configuration = next(library.targets(ipxact.DesignConfiguration), None)
+    for design in library.targets(ipxact.Design):
+        diagnostics += link(design, library, configuration).diagnostics
+    diagnostics = _dedupe_diagnostics(diagnostics)
     _print_diagnostics(diagnostics)
+    if not added:
+        print("not exporting: an input file could not be added to the library", file=sys.stderr)
+        return 1
     if _has_errors(diagnostics):
-        print("not exporting: linking reported errors", file=sys.stderr)
+        print("not exporting: the library or the link reported errors", file=sys.stderr)
         return 1
 
     options = dict(args.option or [])
-    args.exporter_class().export(linked, Path(args.output), **options)
-    print(f"exported '{linked.vlnv}' via '{args.command}' to {args.output}")
+    if not _export(args.command, args.exporter_class, library, args.output, options, f"'{args.file}'"):
+        return 1
+    print(f"exported {_describe_targets(library)} via '{args.command}' to {args.output}")
     return 0
 
 
@@ -98,38 +144,32 @@ def _cmd_run_importer(args: argparse.Namespace) -> int:
         print("--then-option requires --then to also be given", file=sys.stderr)
         return 1
 
+    # The importer adds its documents to the library scanned from --lib, and --then hands that
+    # same library to the exporter, in the same process: no serialization, no intermediate file,
+    # and the exporter can look up what the importer's documents refer to.
+    library = Library.scan(*args.lib)
     options = dict(args.option or [])
-    result = args.importer_class().import_(Path(args.source), **options)
+    args.importer_class().import_(Path(args.source), library, **options)
+    _print_diagnostics(library.diagnostics)
+    if _has_errors(library.diagnostics):
+        if args.then:
+            print("not exporting: the library reported errors", file=sys.stderr)
+        return 1
+    if next(library.targets(), None) is None:
+        print(f"'{args.command}' added no target document to the library", file=sys.stderr)
+        return 1
 
     if not args.then:
-        print(f"imported '{args.source}' via '{args.command}': {type(result).__name__}")
+        print(f"imported '{args.source}' via '{args.command}': {_describe_targets(library)}")
         return 0
 
-    # --then chains straight into an installed exporter's .export(), in the same process, on
-    # the object import_() just returned: no serialization, no intermediate file. args.then is
-    # validated by argparse (choices=) against the exporters registered as their own subcommand,
-    # so the lookup below always succeeds; what can still fail is the exporter rejecting this
-    # particular result. Exporter.export()'s documented convention is to signal that with a
-    # plain TypeError (subject is deliberately untyped, see exporter.py), which gets the precise
-    # "cannot export" message below; a non-compliant exporter raising something else still gets
-    # a contextualized message rather than main()'s bare "error: ..." fallback.
+    # args.then is validated by argparse (choices=) against the exporters registered as their
+    # own subcommand, so the lookup below always succeeds.
     then_options = dict(args.then_option or [])
     then_exporter_class = args.available_exporters[args.then]
-    try:
-        then_exporter_class().export(result, Path(args.output), **then_options)
-    except TypeError as exc:
-        print(
-            f"'{args.then}' cannot export the output of '{args.command}' "
-            f"({type(result).__name__}): {exc}",
-            file=sys.stderr,
-        )
-        return 1
-    except Exception as exc:
-        print(
-            f"'{args.then}' failed while exporting the output of '{args.command}' "
-            f"({type(result).__name__}): {exc}",
-            file=sys.stderr,
-        )
+    if not _export(
+        args.then, then_exporter_class, library, args.output, then_options, f"the output of '{args.command}'"
+    ):
         return 1
 
     print(
@@ -166,8 +206,10 @@ def _add_builtin_subparsers(subparsers: "argparse._SubParsersAction") -> None:
 def _add_exporter_subparser(
     subparsers: "argparse._SubParsersAction", name: str, exporter_class: Type[Exporter]
 ) -> None:
-    parser = subparsers.add_parser(name, help=f"link a design and run the '{name}' exporter on it")
-    parser.add_argument("design", help="path to the top-level design XML file")
+    parser = subparsers.add_parser(
+        name, help=f"run the '{name}' exporter on an IP-XACT file, linking it first if it is a design"
+    )
+    parser.add_argument("file", help="path to the IP-XACT file to export, e.g. a top-level design")
     parser.add_argument(
         "--lib",
         action="append",
@@ -195,6 +237,16 @@ def _add_importer_subparser(
     parser = subparsers.add_parser(name, help=f"run the '{name}' importer on a non-IP-XACT source file")
     parser.add_argument("source", help="path to the source file to import")
     parser.add_argument(
+        "--lib",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help=(
+            "directory to scan for IP-XACT files the importer and --then's exporter can look up; "
+            "may be given multiple times"
+        ),
+    )
+    parser.add_argument(
         "--option", action="append", type=_parse_option, metavar="KEY=VALUE",
         help="an importer-specific option, may be given multiple times",
     )
@@ -204,9 +256,9 @@ def _add_importer_subparser(
         choices=sorted(available_exporters),
         metavar="EXPORTER",
         help=(
-            "an installed exporter's registered name; if given, this importer's result is "
-            "handed straight to that exporter's export() in the same process, no intermediate "
-            "file involved"
+            "an installed exporter's registered name; if given, the library this importer added "
+            "to is handed straight to that exporter's export() in the same process, no "
+            "intermediate file involved"
         ),
     )
     parser.add_argument(

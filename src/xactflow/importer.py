@@ -7,24 +7,32 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Dict, Type
 
+from .library import Library
+
 _ENTRY_POINT_GROUP = "xactflow.importers"
 
 
 class Importer(abc.ABC):
     """Base class for a XactFlow importer plugin.
 
-    An importer reads some non-IP-XACT source (a custom design description, an annotated
-    SystemVerilog file, etc) and produces an IP-XACT object model instance from it.
-    XactFlow itself ships no importers; third-party packages register subclasses under the
-    "xactflow.importers" entry point group in their own pyproject.toml, and discover_importers()
-    below finds them without XactFlow depending on them.
+    An importer reads a non-IP-XACT source (a design description script, an annotated
+    SystemVerilog file, etc) and adds the IP-XACT documents it describes to a Library with
+    library.add(document, target=True), so that an exporter writes them. The library may already
+    hold documents to look up, e.g. the components a design instantiates, scanned from the CLI's
+    --lib folders.
+
+    A document regenerated from its source, whose previous output is also scanned, is added with
+    replace=True; otherwise it is an SCR 1.1 duplicate VLNV.
+
+    XactFlow ships no importers. Packages register their subclasses under the
+    "xactflow.importers" entry point group, and discover_importers() below finds them.
     """
 
     name: str
 
     @abc.abstractmethod
-    def import_(self, source_path: Path, **options: object) -> object:
-        """Read `source_path` and return the IP-XACT object model it describes."""
+    def import_(self, source_path: Path, library: Library, **options: object) -> None:
+        """Read `source_path` and add the IP-XACT documents it describes to `library`."""
 
 
 def _entry_points_for_group(group: str):

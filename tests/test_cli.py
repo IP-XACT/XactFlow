@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import ipxact
 import pytest
 
 from xactflow.cli import main
@@ -128,8 +129,8 @@ class _FakeExporter(Exporter):
     name = "fake"
     exported: list = []
 
-    def export(self, subject, output_dir, **options):
-        type(self).exported.append((subject.vlnv, output_dir, options))
+    def export(self, library, output_dir, **options):
+        type(self).exported.append((library, output_dir, options))
 
 
 def test_installed_exporter_becomes_its_own_top_level_subcommand(monkeypatch, tmp_path, capsys):
@@ -151,11 +152,24 @@ def test_installed_exporter_becomes_its_own_top_level_subcommand(monkeypatch, tm
 
     assert exit_code == 0
     assert len(_FakeExporter.exported) == 1
-    vlnv, output_dir, options = _FakeExporter.exported[0]
-    assert str(vlnv) == "example.org:soc:top:1.0"
+    library, output_dir, options = _FakeExporter.exported[0]
+    # the design is the only target, though it is also under --lib; the rest is there to look up.
+    assert [str(d.vlnv) for d in library.targets()] == ["example.org:soc:top:1.0"]
+    assert len(list(library.documents(ipxact.Component))) == 2
     assert output_dir == tmp_path
     assert options == {"flavor": "minimal"}
-    assert "exported 'example.org:soc:top:1.0' via 'fake-exporter'" in capsys.readouterr().out
+    assert "exported Design 'example.org:soc:top:1.0' via 'fake-exporter'" in capsys.readouterr().out
+
+
+def test_installed_exporter_runs_on_a_file_that_is_not_a_design(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"fake-exporter": _FakeExporter})
+    _FakeExporter.exported.clear()
+
+    exit_code = main(["fake-exporter", str(FIXTURES / "basic" / "target_component.xml"), "--output", str(tmp_path)])
+
+    assert exit_code == 0
+    library, _, _ = _FakeExporter.exported[0]
+    assert [str(d.vlnv) for d in library.targets()] == ["example.org:ip:target_comp:1.0"]
 
 
 def test_installed_exporter_does_not_run_when_linking_has_errors(monkeypatch, tmp_path):
@@ -177,46 +191,83 @@ def test_installed_exporter_does_not_run_when_linking_has_errors(monkeypatch, tm
     assert _FakeExporter.exported == []
 
 
+def test_installed_exporter_does_not_run_on_a_file_that_is_not_ipxact(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"fake-exporter": _FakeExporter})
+    _FakeExporter.exported.clear()
+
+    exit_code = main(["fake-exporter", str(FIXTURES / "not_ipxact" / "not_ipxact.xml"), "--output", str(tmp_path)])
+
+    assert exit_code == 1
+    assert _FakeExporter.exported == []
+    assert "could not be added to the library" in capsys.readouterr().err
+
+
 class _FakeImporter(Importer):
+    """Adds the component example.org:ip:<source stem>:1.0, and records what it was given."""
+
     name = "fake"
     imported: list = []
 
-    def import_(self, source_path, **options):
-        type(self).imported.append((source_path, options))
-        return "fake-object-model"
+    def import_(self, source_path, library, **options):
+        type(self).imported.append((source_path, len(list(library.documents())), options))
+        vlnv = ipxact.VLNV.parse(f"example.org:ip:{source_path.stem}:1.0")
+        library.add(ipxact.Component(vlnv=vlnv), target=True)
+
+
+class _EmptyFakeImporter(Importer):
+    name = "empty"
+
+    def import_(self, source_path, library, **options):
+        pass
 
 
 def test_installed_importer_becomes_its_own_top_level_subcommand(monkeypatch, capsys):
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
     _FakeImporter.imported.clear()
 
-    exit_code = main(["fake-importer", str(FIXTURES / "basic" / "top_design.xml"), "--option", "mode=strict"])
+    exit_code = main(["fake-importer", "generated.sv", "--option", "mode=strict"])
 
     assert exit_code == 0
-    assert _FakeImporter.imported == [
-        (Path(str(FIXTURES / "basic" / "top_design.xml")), {"mode": "strict"})
-    ]
+    assert _FakeImporter.imported == [(Path("generated.sv"), 0, {"mode": "strict"})]
     out = capsys.readouterr().out
-    assert "imported" in out
-    assert "via 'fake-importer': str" in out
+    assert "imported 'generated.sv' via 'fake-importer': Component 'example.org:ip:generated:1.0'" in out
+
+
+def test_importer_can_look_up_the_documents_scanned_from_lib(monkeypatch):
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+    _FakeImporter.imported.clear()
+
+    exit_code = main(["fake-importer", "generated.sv", "--lib", str(FIXTURES / "basic")])
+
+    assert exit_code == 0
+    assert _FakeImporter.imported == [(Path("generated.sv"), 5, {})]
+
+
+def test_importer_that_adds_no_target_is_an_error(monkeypatch, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"empty": _EmptyFakeImporter})
+
+    exit_code = main(["empty", "generated.sv"])
+
+    assert exit_code == 1
+    assert "'empty' added no target document to the library" in capsys.readouterr().err
 
 
 class _ChainableFakeExporter(Exporter):
     name = "chainable"
     calls: list = []
 
-    def export(self, subject, output_dir, **options):
-        type(self).calls.append((subject, output_dir, options))
+    def export(self, library, output_dir, **options):
+        type(self).calls.append((library, output_dir, options))
 
 
 class _TypeRejectingFakeExporter(Exporter):
     name = "picky"
 
-    def export(self, subject, output_dir, **options):
-        raise TypeError(f"picky only supports Component, got {type(subject).__name__}")
+    def export(self, library, output_dir, **options):
+        raise TypeError("picky only supports ipxact.Design targets")
 
 
-def test_then_chains_importer_output_straight_into_an_exporter(monkeypatch, tmp_path, capsys):
+def test_then_hands_the_library_the_importer_added_to_straight_to_an_exporter(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"chainable": _ChainableFakeExporter})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
     _ChainableFakeExporter.calls.clear()
@@ -225,7 +276,9 @@ def test_then_chains_importer_output_straight_into_an_exporter(monkeypatch, tmp_
     exit_code = main(
         [
             "fake-importer",
-            str(FIXTURES / "basic" / "top_design.xml"),
+            "generated.sv",
+            "--lib",
+            str(FIXTURES / "basic"),
             "--option",
             "mode=strict",
             "--then",
@@ -238,12 +291,12 @@ def test_then_chains_importer_output_straight_into_an_exporter(monkeypatch, tmp_
     )
 
     assert exit_code == 0
-    assert _FakeImporter.imported == [
-        (Path(str(FIXTURES / "basic" / "top_design.xml")), {"mode": "strict"})
-    ]
+    assert _FakeImporter.imported == [(Path("generated.sv"), 5, {"mode": "strict"})]
     assert len(_ChainableFakeExporter.calls) == 1
-    subject, output_dir, options = _ChainableFakeExporter.calls[0]
-    assert subject == "fake-object-model"  # exactly what _FakeImporter.import_ returned, unserialized
+    library, output_dir, options = _ChainableFakeExporter.calls[0]
+    # only what the importer added is a target; what --lib scanned is still there to look up.
+    assert [str(d.vlnv) for d in library.targets()] == ["example.org:ip:generated:1.0"]
+    assert len(list(library.documents(ipxact.Component))) == 3
     assert output_dir == tmp_path
     assert options == {"flavor": "minimal"}
     out = capsys.readouterr().out
@@ -251,76 +304,66 @@ def test_then_chains_importer_output_straight_into_an_exporter(monkeypatch, tmp_
     assert "exported via 'chainable'" in out
 
 
+def test_then_does_not_export_when_the_import_gives_a_library_error(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"chainable": _ChainableFakeExporter})
+    monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
+    _ChainableFakeExporter.calls.clear()
+
+    # example.org:ip:target_comp:1.0 is already under --lib: an SCR 1.1 duplicate VLNV.
+    exit_code = main(
+        ["fake-importer", "target_comp.sv", "--lib", str(FIXTURES / "basic"), "--then", "chainable"]
+    )
+
+    assert exit_code == 1
+    assert _ChainableFakeExporter.calls == []
+    err = capsys.readouterr().err
+    assert "SCR 1.1" in err
+    assert "not exporting: the library reported errors" in err
+
+
 def test_then_with_unknown_exporter_name_is_an_argparse_error(monkeypatch, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"chainable": _ChainableFakeExporter})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
 
     with pytest.raises(SystemExit):
-        main(
-            [
-                "fake-importer",
-                str(FIXTURES / "basic" / "top_design.xml"),
-                "--then",
-                "does-not-exist",
-            ]
-        )
+        main(["fake-importer", "generated.sv", "--then", "does-not-exist"])
     assert "invalid choice" in capsys.readouterr().err
 
 
-def test_then_surfaces_a_clear_error_when_the_exporter_rejects_the_type(monkeypatch, tmp_path, capsys):
+def test_then_surfaces_a_clear_error_when_the_exporter_rejects_the_targets(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"picky": _TypeRejectingFakeExporter})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
-    _FakeImporter.imported.clear()
 
-    exit_code = main(
-        [
-            "fake-importer",
-            str(FIXTURES / "basic" / "top_design.xml"),
-            "--then",
-            "picky",
-            "--output",
-            str(tmp_path),
-        ]
-    )
+    exit_code = main(["fake-importer", "generated.sv", "--then", "picky", "--output", str(tmp_path)])
 
     assert exit_code == 1
     err = capsys.readouterr().err
     assert "'picky' cannot export the output of 'fake-importer'" in err
-    assert "str" in err  # names the rejected type, not just a bare traceback
+    assert "Component 'example.org:ip:generated:1.0'" in err  # names what it was given
     assert "Traceback" not in err
 
 
 class _MisbehavingFakeExporter(Exporter):
     name = "misbehaving"
 
-    def export(self, subject, output_dir, **options):
+    def export(self, library, output_dir, **options):
         # a non-compliant exporter that doesn't follow the TypeError-for-rejection convention,
-        # e.g. unguarded attribute access on a subject it doesn't actually support.
-        subject.instances
+        # e.g. unguarded access to a target kind the library does not hold.
+        next(library.targets(ipxact.Design))
 
 
 def test_then_contextualizes_a_non_type_error_from_the_exporter_too(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {"misbehaving": _MisbehavingFakeExporter})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
-    _FakeImporter.imported.clear()
 
-    exit_code = main(
-        [
-            "fake-importer",
-            str(FIXTURES / "basic" / "top_design.xml"),
-            "--then",
-            "misbehaving",
-            "--output",
-            str(tmp_path),
-        ]
-    )
+    exit_code = main(["fake-importer", "generated.sv", "--then", "misbehaving", "--output", str(tmp_path)])
 
     assert exit_code == 1
     err = capsys.readouterr().err
-    # still names both plugins and the type, unlike main()'s bare "error: ..." fallback, even
+    # still names both plugins and the targets, unlike main()'s bare "error: ..." fallback, even
     # though this exporter didn't raise the documented TypeError convention.
     assert "'misbehaving' failed while exporting the output of 'fake-importer'" in err
-    assert "str" in err
+    assert "Component 'example.org:ip:generated:1.0'" in err
     assert not err.startswith("error: ")
     assert "Traceback" not in err
 
@@ -329,14 +372,7 @@ def test_then_option_without_then_is_a_clear_error(monkeypatch, capsys):
     monkeypatch.setattr("xactflow.cli.discover_exporters", lambda: {})
     monkeypatch.setattr("xactflow.cli.discover_importers", lambda: {"fake-importer": _FakeImporter})
 
-    exit_code = main(
-        [
-            "fake-importer",
-            str(FIXTURES / "basic" / "top_design.xml"),
-            "--then-option",
-            "flavor=minimal",
-        ]
-    )
+    exit_code = main(["fake-importer", "generated.sv", "--then-option", "flavor=minimal"])
 
     assert exit_code == 1
     assert "--then-option requires --then" in capsys.readouterr().err

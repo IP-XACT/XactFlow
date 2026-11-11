@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterator, Optional, Tuple, Type, Union
 
 import ipxact
 from lxml import etree
@@ -29,10 +29,14 @@ class LibraryEntry:
 
     path is the file the document was parsed from, or None for a document added in memory
     through Library.add.
+
+    target marks a document as the output of the flow, the one an exporter writes, as opposed to
+    one that is only there to be looked up, e.g. a component scanned from a --lib folder.
     """
 
     path: Optional[Path]
     document: object
+    target: bool = False
 
 
 @dataclass
@@ -44,6 +48,10 @@ class Library:
     VLNV collisions (SCR 1.1 uniqueVLNV), are recorded as diagnostics instead of raising.
     Documents that only exist in memory (e.g. produced by an importer) go through Library.add,
     which applies the same checks.
+
+    The library is what importers and exporters share: an importer adds the documents it
+    produces with target=True, and an exporter writes the targets() it supports, looking up
+    everything else they refer to in documents().
     """
 
     entries: "dict[ipxact.VLNV, LibraryEntry]" = field(default_factory=dict)
@@ -77,11 +85,14 @@ class Library:
                 )
         return library
 
-    def add(self, document: object, path: Optional[Path] = None, *, replace: bool = False) -> bool:
+    def add(
+        self, document: object, path: Optional[Path] = None, *, replace: bool = False, target: bool = False
+    ) -> bool:
         """Index an already-parsed IP-XACT document, e.g. one produced in memory by an importer.
 
         With replace=True the existing entry is overwritten, for when the document is regenerated
-        from a source that changes the scanned one.
+        from a source that changes the scanned one. With target=True the document is one of
+        targets().
 
         Returns True if the document was indexed, False if it was rejected as a duplicate.
         """
@@ -102,12 +113,13 @@ class Library:
             )
             return False
 
-        self.entries[vlnv] = LibraryEntry(path=path, document=document)
+        self.entries[vlnv] = LibraryEntry(path=path, document=document, target=target)
         return True
 
-    def add_file(self, path: Union[str, Path], *, replace: bool = False) -> bool:
+    def add_file(self, path: Union[str, Path], *, replace: bool = False, target: bool = False) -> bool:
         """Parse one file and index it, with the same checks as scan. A file already read, by any
-        path, is skipped unless replace=True.
+        path, is not read again unless replace=True; with target=True its document still becomes
+        a target, e.g. a design given on the command line that is also under a --lib folder.
 
         Returns True if the file's document is in the library, False if the file is not IP-XACT
         1685-2022, fails to parse, or has a duplicate VLNV.
@@ -117,13 +129,15 @@ class Library:
             raise FileNotFoundError(f"library file does not exist: {path}")
         resolved = path.resolve()
         if resolved in self._read_files and not replace:
-            return any(
-                entry.path is not None and entry.path.resolve() == resolved
-                for entry in self.entries.values()
-            )
+            found = False
+            for entry in self.entries.values():
+                if entry.path is not None and entry.path.resolve() == resolved:
+                    entry.target |= target
+                    found = True
+            return found
         self._read_files.add(resolved)
         document = self._parse_file(path)
-        return document is not None and self.add(document, path, replace=replace)
+        return document is not None and self.add(document, path, replace=replace, target=target)
 
     def _parse_file(self, path: Path) -> Optional[object]:
         """Parse one file into an IP-XACT 1685-2022 document, or return None if it is not one.
@@ -172,8 +186,21 @@ class Library:
 
         return document
 
-    def documents(self) -> Iterable[object]:
-        return (entry.document for entry in self.entries.values())
+    def documents(self, kind: Union[Type, Tuple[Type, ...], None] = None) -> Iterator[object]:
+        """Every document, or only those that are instances of kind, e.g. ipxact.Component."""
+        return (
+            entry.document
+            for entry in self.entries.values()
+            if kind is None or isinstance(entry.document, kind)
+        )
+
+    def targets(self, kind: Union[Type, Tuple[Type, ...], None] = None) -> Iterator[object]:
+        """The documents added with target=True, or only those that are instances of kind."""
+        return (
+            entry.document
+            for entry in self.entries.values()
+            if entry.target and (kind is None or isinstance(entry.document, kind))
+        )
 
     def get(self, vlnv: "ipxact.VLNV") -> Optional[object]:
         entry = self.entries.get(vlnv)

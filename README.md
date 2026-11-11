@@ -34,20 +34,24 @@ xactflow check file.xml
   and exits with 1 if any is an error.
 - `check` runs the checks that need only one file, e.g. in CI or a pre-commit hook.
 
-Each installed plugin adds its own subcommand (see [Plugins](#plugins)):
+Each installed plugin adds its own subcommand (see [Plugins](#plugins)). Both kinds work on one
+`Library`, scanned from the `--lib` folders:
 
-- an exporter: `xactflow <exporter> design.xml --lib DIR --output DIR`, which links the design
-  and passes the `LinkedDesign` to the exporter;
-- an importer: `xactflow <importer> source --output DIR`, with `--then <exporter>` to pass its
-  result straight to an exporter, without an intermediate file:
+- an exporter: `xactflow <exporter> file.xml --lib DIR --output DIR` adds `file.xml` to the
+  library as the target to export, links it first if it is a design, and passes the library to
+  the exporter;
+- an importer: `xactflow <importer> source --lib DIR` adds what it reads to the library, with
+  `--then <exporter>` to pass that same library straight to an exporter, without an
+  intermediate file:
 
 ```bash
 xactflow sv module.sv --option metadata=module_ipxact.json --then component --output out/
+xactflow archidesc soc.py --lib ip/ --lib bus_definitions/ --then topgen --output out/
 ```
 
 `--option KEY=VALUE` sets a plugin option; `--then-option KEY=VALUE` sets one for the `--then`
-exporter. If that exporter does not accept the importer's result, the command prints a one-line
-error naming both plugins.
+exporter. If that exporter supports none of the importer's documents, the command prints a
+one-line error naming both plugins.
 
 ## Python
 
@@ -70,8 +74,12 @@ linked.diagnostics        # list[Diagnostic]
   raises an error; files of another IP-XACT version, or a folder with no 1685-2022 file, give a
   warning in `library.diagnostics`.
 - `library.add_file(path)` adds one file, with the same checks.
-- `library.add(document, path=None, replace=False)` adds a document that only exists in
-  memory, e.g. an importer's result. `path` only records where it came from.
+- `library.add(document, path=None, replace=False, target=False)` adds a document that only
+  exists in memory, e.g. an importer's result. `path` only records where it came from.
+- `library.documents(kind=None)` returns every document, or those of one type, e.g.
+  `library.documents(ipxact.Component)`.
+- `library.targets(kind=None)` returns only the documents added with `target=True`: the ones
+  an exporter writes, as opposed to those it only looks up.
 
 A duplicate VLNV is reported as an SCR 1.1 error, unless `replace=True`.
 
@@ -125,11 +133,31 @@ their own, e.g. by an exporter to check the IP-XACT it writes.
 Plugins live in their own packages and are found through
 [entry points](https://packaging.python.org/en/latest/specifications/entry-points/):
 
-- an `xactflow.Exporter` (group `xactflow.exporters`) writes an output from an object: RTL,
-  documentation, IP-XACT XML... Each exporter says which objects it accepts and raises
-  `TypeError` for the others.
-- an `xactflow.Importer` (group `xactflow.importers`) reads a non-IP-XACT source and returns
-  IP-XACT objects.
+- an `xactflow.Importer` (group `xactflow.importers`) reads a non-IP-XACT source and adds
+  the IP-XACT documents it describes to a `Library`, with `target=True`.
+- an `xactflow.Exporter` (group `xactflow.exporters`) writes an output from the targets of a
+  `Library`: RTL, documentation, IP-XACT XML... It looks up anything else it needs in the
+  library, e.g. with `link(design, library)`. Each exporter says which targets it supports and
+  raises `TypeError` when the library has none.
+
+```python
+class MyImporter(Importer):
+    name = "mine"
+
+    def import_(self, source_path, library, **options):
+        library.add(build_component(source_path), target=True)
+
+
+class MyExporter(Exporter):
+    name = "mine"
+
+    def export(self, library, output_dir, **options):
+        designs = list(library.targets(ipxact.Design))
+        if not designs:
+            raise TypeError("'mine' needs an ipxact.Design target")
+        for design in designs:
+            write_rtl(link(design, library), output_dir)
+```
 
 ```toml
 [project.entry-points."xactflow.exporters"]
@@ -145,8 +173,8 @@ A plugin that fails to load is skipped with a warning; the others keep working.
 | [XactFlow-component](https://github.com/IP-XACT/XactFlow-component) | exporter | `component` | `ipxact.Component` → component XML |
 | [XactFlow-design](https://github.com/IP-XACT/XactFlow-design) | exporter | `design` | `ipxact.Design` → design XML |
 
-The two exporters take an `ipxact.Component` / `ipxact.Design`, not a `LinkedDesign`: use them
-from Python or after an importer with `--then`.
+The plugins above were written for the previous API, where `import_` returned an object and
+`export` took one; they need a release for this one.
 
 ## Limitations and plans
 

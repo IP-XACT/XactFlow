@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import ipxact
 import pytest
 
 from xactflow.exporter import Exporter, discover_exporters
+from xactflow.library import Library
 
 
 def test_exporter_cannot_be_instantiated_directly():
@@ -10,43 +12,30 @@ def test_exporter_cannot_be_instantiated_directly():
         Exporter()
 
 
-def test_concrete_exporter_subclass_can_be_instantiated_and_called():
+def test_concrete_exporter_writes_the_targets_of_the_library_it_is_given():
     class FakeExporter(Exporter):
         name = "fake"
 
         def __init__(self):
             self.calls = []
 
-        def export(self, subject, output_dir, **options):
-            self.calls.append((subject, output_dir, options))
+        def export(self, library, output_dir, **options):
+            for component in library.targets(ipxact.Component):
+                self.calls.append((str(component.vlnv), output_dir, options))
+
+    library = Library()
+    library.add(ipxact.Component(vlnv=ipxact.VLNV.parse("example.org:ip:looked_up:1.0")))
+    library.add(ipxact.Component(vlnv=ipxact.VLNV.parse("example.org:ip:written:1.0")), target=True)
 
     exporter = FakeExporter()
-    exporter.export(subject=None, output_dir=Path("/tmp/out"), foo="bar")
-    assert exporter.calls == [(None, Path("/tmp/out"), {"foo": "bar"})]
-
-
-def test_export_accepts_any_kind_of_subject_not_only_an_linked_design():
-    # subject is deliberately untyped: an exporter may receive a LinkedDesign, a bare
-    # ipxact.Component/Design an Importer just produced, or anything else it chooses to support.
-    class FakeExporter(Exporter):
-        name = "fake"
-
-        def __init__(self):
-            self.calls = []
-
-        def export(self, subject, output_dir, **options):
-            self.calls.append(subject)
-
-    exporter = FakeExporter()
-    bare_component = object()  # stands in for a bare ipxact.Component here
-    exporter.export(bare_component, Path("/tmp/out"))
-    assert exporter.calls == [bare_component]
+    exporter.export(library, Path("/tmp/out"), foo="bar")
+    assert exporter.calls == [("example.org:ip:written:1.0", Path("/tmp/out"), {"foo": "bar"})]
 
 
 class _FakeExporter(Exporter):
     name = "fake"
 
-    def export(self, subject, output_dir, **options):
+    def export(self, library, output_dir, **options):
         pass
 
 

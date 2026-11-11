@@ -240,6 +240,56 @@ def test_add_with_replace_overwrites_the_existing_entry_without_a_diagnostic():
     assert not any(d.rule_id == "SCR 1.1" for d in library.diagnostics)
 
 
+def test_documents_filters_by_kind():
+    library = Library.scan(FIXTURES / "basic")
+
+    assert len(list(library.documents())) == 5
+    assert {str(c.vlnv) for c in library.documents(ipxact.Component)} == {
+        "example.org:ip:initiator_comp:1.0",
+        "example.org:ip:target_comp:1.0",
+    }
+    assert len(list(library.documents((ipxact.BusDefinition, ipxact.AbstractionDefinition)))) == 2
+
+
+def test_scanned_documents_are_not_targets():
+    library = Library.scan(FIXTURES / "basic")
+
+    assert list(library.targets()) == []
+
+
+def test_add_with_target_makes_the_document_a_target():
+    library = Library.scan(FIXTURES / "basic")
+    component = _component("generated")
+    design = ipxact.parse_element(etree.fromstring(_DESIGN_XML.encode()))
+
+    library.add(component, target=True)
+    library.add(design, target=True)
+
+    assert list(library.targets()) == [component, design]
+    assert list(library.targets(ipxact.Component)) == [component]
+    assert len(list(library.documents(ipxact.Component))) == 3
+
+
+def test_add_with_replace_and_target_makes_a_scanned_document_a_target():
+    library = Library.scan(FIXTURES / "basic")
+    vlnv = ipxact.VLNV.parse("example.org:ip:initiator_comp:1.0")
+    regenerated = ipxact.Component(vlnv=vlnv)
+
+    library.add(regenerated, replace=True, target=True)
+
+    assert list(library.targets()) == [regenerated]
+
+
+def test_add_file_with_target_of_a_file_already_read_makes_it_a_target():
+    # e.g. the design given on the command line also sits under a --lib folder.
+    library = Library.scan(FIXTURES / "basic")
+
+    assert library.add_file(FIXTURES / "basic" / "top_design.xml", target=True) is True
+
+    assert [str(d.vlnv) for d in library.targets()] == ["example.org:soc:top:1.0"]
+    assert library.diagnostics == []
+
+
 def test_add_file_indexes_one_file():
     library = Library()
     path = FIXTURES / "basic" / "top_design.xml"

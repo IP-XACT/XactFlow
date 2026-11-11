@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import ipxact
 import pytest
 
 from xactflow.importer import Importer, discover_importers
+from xactflow.library import Library
 
 
 def test_importer_cannot_be_instantiated_directly():
@@ -10,28 +12,25 @@ def test_importer_cannot_be_instantiated_directly():
         Importer()
 
 
-def test_concrete_importer_subclass_can_be_instantiated_and_called():
+def test_concrete_importer_adds_its_documents_to_the_library_as_targets():
     class FakeImporter(Importer):
         name = "fake"
 
-        def __init__(self):
-            self.calls = []
+        def import_(self, source_path, library, **options):
+            vlnv = ipxact.VLNV.parse(f"example.org:ip:{source_path.stem}:{options['version']}")
+            library.add(ipxact.Component(vlnv=vlnv), target=True)
 
-        def import_(self, source_path, **options):
-            self.calls.append((source_path, options))
-            return "fake-object-model"
+    library = Library()
+    FakeImporter().import_(Path("/tmp/source.sv"), library, version="2.0")
 
-    importer = FakeImporter()
-    result = importer.import_(Path("/tmp/source.sv"), foo="bar")
-    assert result == "fake-object-model"
-    assert importer.calls == [(Path("/tmp/source.sv"), {"foo": "bar"})]
+    assert [str(document.vlnv) for document in library.targets()] == ["example.org:ip:source:2.0"]
 
 
 class _FakeImporter(Importer):
     name = "fake"
 
-    def import_(self, source_path, **options):
-        return None
+    def import_(self, source_path, library, **options):
+        pass
 
 
 class _NotAnImporter:

@@ -7,35 +7,35 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Dict, Type
 
+from .library import Library
+
 _ENTRY_POINT_GROUP = "xactflow.exporters"
 
 
 class Exporter(abc.ABC):
     """Base class for a XactFlow exporter plugin.
 
-    An exporter turns some IP-XACT-flavored Python object into an output artifact (RTL,
-    documentation, another IP-XACT file, etc). `subject` is deliberately untyped: it may be an
-    LinkedDesign, a bare ipxact.Component or ipxact.Design, or anything else a given exporter
-    chooses to support. It is each exporter's own job to check what it was actually handed and
-    document what it accepts, and to raise a plain TypeError when `subject` is not one of the
-    types it supports. That specific exception type is a load-bearing convention, not just a
-    style choice: the CLI's importer-to-exporter chaining (`--then`) catches TypeError
-    specifically to report a clear, one-line rejection instead of a generic error.
+    An exporter writes an output (RTL, documentation, IP-XACT XML, etc) for the targets of a
+    Library: the documents an importer, or the CLI, added with target=True. It picks the kinds
+    it supports, e.g. library.targets(ipxact.Component), and finds everything they refer to in
+    library.documents(); a design can be linked with xactflow.link(design, library).
 
-    XactFlow itself ships no exporters; third-party packages register subclasses under the
-    "xactflow.exporters" entry point group in their own pyproject.toml, and discover_exporters()
-    below finds them without XactFlow depending on them.
+    Each exporter documents the kinds of target it supports, and raises a plain TypeError when
+    the library holds none of them. The CLI relies on that exception type to print a one-line
+    message naming the exporter, instead of a generic error.
 
-    An exporter that itself generates IP-XACT output should re-run SCR checking on what it
-    generated, using the public, standalone xactflow.SCR.run_single_doc_checks /
-    run_post_config_checks functions.
+    An exporter that writes IP-XACT should check what it wrote with
+    xactflow.SCR.run_single_doc_checks and run_post_config_checks.
+
+    XactFlow ships no exporters. Packages register their subclasses under the
+    "xactflow.exporters" entry point group, and discover_exporters() below finds them.
     """
 
     name: str
 
     @abc.abstractmethod
-    def export(self, subject: object, output_dir: Path, **options: object) -> None:
-        """Generate this exporter's output for `subject` into `output_dir`."""
+    def export(self, library: Library, output_dir: Path, **options: object) -> None:
+        """Generate this exporter's output for the targets of `library` into `output_dir`."""
 
 
 def _entry_points_for_group(group: str):
