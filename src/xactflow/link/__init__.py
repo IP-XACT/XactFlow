@@ -3,6 +3,8 @@ from .model import (
     LinkedInstance,
     LinkedInterconnection,
     LinkedMonitorInterconnection,
+    ResolvedExternalPortReference,
+    ResolvedHierInterface,
     ResolvedInterfaceEndpoint,
     ResolvedPortReference,
 )
@@ -13,6 +15,8 @@ __all__ = [
     "LinkedInstance",
     "LinkedInterconnection",
     "LinkedMonitorInterconnection",
+    "ResolvedExternalPortReference",
+    "ResolvedHierInterface",
     "ResolvedInterfaceEndpoint",
     "ResolvedPortReference",
     "link",

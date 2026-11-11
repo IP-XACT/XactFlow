@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from . import SCR
 from .diagnostics import Diagnostic, Severity
@@ -11,6 +11,8 @@ from .link import (
     LinkedInstance,
     LinkedInterconnection,
     LinkedMonitorInterconnection,
+    ResolvedExternalPortReference,
+    ResolvedHierInterface,
     ResolvedInterfaceEndpoint,
     ResolvedPortReference,
     link,
@@ -33,6 +35,8 @@ __all__ = [
     "LinkedInstance",
     "LinkedInterconnection",
     "LinkedMonitorInterconnection",
+    "ResolvedExternalPortReference",
+    "ResolvedHierInterface",
     "ResolvedInterfaceEndpoint",
     "ResolvedPortReference",
     "link",

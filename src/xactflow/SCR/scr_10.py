@@ -25,7 +25,7 @@ stub(
     name="HierFamilyBusIntfModesMatch",
     single_doc_check=False,
     post_config=False,
-    description="All members of a hierarchical family of bus interfaces shall have the same interface mode (e.g. initiator, target, system).",
+    description="All members of a hierarchical family of bus interfaces shall have the same interface mode (e.g., initiator, target, system).",
 )
 
 stub(

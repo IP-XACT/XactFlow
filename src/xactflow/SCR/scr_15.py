@@ -23,7 +23,7 @@ stub(
     name="accessHandleSlice",
     single_doc_check=True,
     post_config=True,
-    description="It is not allowed to specify more than one accessHandle/slices/slice element, and it is not allowed to specify a slice/range on an addressBlock with a usage of register or reserved.",
+    description="It is not allowed to specify more than one accessHandle/ slices/slice element, and it is not allowed to specify a slice/ range on an addressBlock with a usage of register or reserved.",
 )
 
 stub(

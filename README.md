@@ -14,10 +14,11 @@ Rules (SCRs) of the standard.
 pip install xactflow
 ```
 
-Requires Python 3.9 or later. 
+Requires Python 3.9 or later. This README follows `main`: the plugin API it describes is newer
+than the 0.3.0 release (see [Plugins](#plugins)).
 
-For development, `requirements-dev.txt` installs
-`ipxact-compiler` from a sibling checkout (`../ipxact-compiler`); change the path if needed:
+For development, `requirements-dev.txt` installs `ipxact-compiler` from a sibling checkout
+(`../ipxact-compiler`); change the path if needed:
 
 ```bash
 pip install -r requirements-dev.txt -e .
@@ -32,14 +33,14 @@ xactflow check file.xml
 
 - `link` scans the `--lib` folders, resolves the design against them, prints the diagnostics,
   and exits with 1 if any is an error.
-- `check` runs the checks that need only one file, e.g. in CI or a pre-commit hook.
+- `check` runs the checks that need only one file, without a library.
 
 Each installed plugin adds its own subcommand (see [Plugins](#plugins)). Both kinds work on one
 `Library`, scanned from the `--lib` folders:
 
-- an exporter: `xactflow <exporter> file.xml --lib DIR --output DIR` adds `file.xml` to the
-  library as the target to export, links it first if it is a design, and passes the library to
-  the exporter;
+- an exporter: `xactflow <exporter> file.xml --lib DIR [--config FILE] --output DIR` adds
+  `file.xml` to the library as the target to export, links it first if it is a design, and
+  passes the library to the exporter;
 - an importer: `xactflow <importer> source --lib DIR` adds what it reads to the library, with
   `--then <exporter>` to pass that same library straight to an exporter, without an
   intermediate file:
@@ -61,11 +62,25 @@ from xactflow import Library, link
 
 library = Library.scan("path/to/ip/library")
 design = ipxact.parse_file("path/to/top_design.xml")
-linked = link(design, library)
+linked = link(design, library)    # optional: design_configuration=..., component=...
 
 linked.instances          # dict[str, LinkedInstance], by instance name
-linked.interconnections   # list[LinkedInterconnection], with the endpoints that resolved
+linked.interconnections   # list[LinkedInterconnection], with the interfaces that resolved
+linked.component          # the component containing the design, or None
 linked.diagnostics        # list[Diagnostic]
+```
+
+A design's `hierInterface` and `externalPortReference` elements refer to the bus interfaces and
+ports of the component containing it. `link()` uses the component given with `component=`, or
+else the one component of the library with a view instantiating the design. With none, or
+several, these references are not checked, and a warning says so.
+
+Each `Diagnostic` has a `message`, a `severity` (`Severity.ERROR` or `Severity.WARNING`), a
+`location` (a VLNV, a file, or a path such as `vendor:lib:top:1.0/conn0`), and, when it is an
+Annex B rule, its `rule_id` and `rule_name`. `str(diagnostic)` gives the line the CLI prints:
+
+```text
+error: [SCR 2.4] interconnection 'conn0' connects ... (example.org:soc:top:1.0/conn0)
 ```
 
 `Library` indexes documents by VLNV:
@@ -80,6 +95,9 @@ linked.diagnostics        # list[Diagnostic]
   `library.documents(ipxact.Component)`.
 - `library.targets(kind=None)` returns only the documents added with `target=True`: the ones
   an exporter writes, as opposed to those it only looks up.
+- `library.get(vlnv)` returns the document with that VLNV, or None; `get_component`,
+  `get_design`, `get_bus_definition`, `get_abstraction_definition` and
+  `get_design_configuration` also return None for a document of another type.
 
 A duplicate VLNV is reported as an SCR 1.1 error, unless `replace=True`.
 
@@ -115,14 +133,15 @@ evaluate(register.size, resolve_parameter=resolve)          # an ipxact.Expressi
 ## Semantic Consistency Rules (SCR)
 
 Annex B of the standard defines 281 SCRs in 15 tables. All are registered in `xactflow.SCR`,
-one module per table, with their id, name and text. 7 have a check today: SCR 1.2, 1.9 and
-2.1 to 2.5. The others are placeholders that report nothing.
+one module per table, with their id, name and text as written in the standard (without its
+"See also" references). 15 have a check today: SCR 1.2, 1.5, 1.9, 2.1 to 2.10, 2.17 and 13.5.
+The others are placeholders that report nothing.
 
 ```python
 from xactflow import SCR
 
 len(SCR.all_rules())                                # 281
-[r.id for r in SCR.all_rules() if r.implemented]    # the 7 rules with a check
+[r.id for r in SCR.all_rules() if r.implemented]    # the 15 rules with a check
 ```
 
 `SCR.run_single_doc_checks(document)` and `SCR.run_post_config_checks(linked)` can be called on
@@ -160,9 +179,14 @@ class MyExporter(Exporter):
 ```
 
 ```toml
+[project.entry-points."xactflow.importers"]
+sv = "xactflow_sv:SVImporter"
+
 [project.entry-points."xactflow.exporters"]
 component = "xactflow_component:ComponentExporter"
 ```
+
+The entry point name is the subcommand.
 
 A plugin that fails to load is skipped with a warning; the others keep working.
 
@@ -178,11 +202,12 @@ The plugins above were written for the previous API, where `import_` returned an
 
 ## Limitations and plans
 
-- **274 of the 281 SCRs have no check yet.** Next: the single-file rules, and the
+- **266 of the 281 SCRs have no check yet.** Next: the single-file rules, and the
   overlap/alignment rules, which can now use `evaluate()`.
-- **Monitor and ad hoc connections are not checked.** `link()` resolves them, but a broken
-  reference is dropped without a message.
-- **Flat-design  only.** `link()` does not go into designs nested in the hierarchy.
+- **Monitor connections are not checked.** `link()` resolves them, but a broken reference is
+  dropped without a message.
+- **One level of hierarchy.** `link()` checks a design against its instances and the
+  component containing it, but does not go into the designs of its instances.
 
 ## License
 

@@ -14,7 +14,7 @@ stub(
     name="BlockWidthCondition",
     single_doc_check=False,
     post_config=False,
-    description="The width of an address block included in a memory map or memory map definition shall be a multiple of the memory map's addressUnitBits.",
+    description="The width of an address block included in a memory map or memory map definition shall be a multiple of the memory map’s addressUnitBits.",
 )
 
 stub(
@@ -43,9 +43,11 @@ stub(
     post_config=True,
     description=(
         "Two addressBlocks in the same memoryMap shall not overlap, i.e. no address block "
-        "shall have a baseAddress that falls within the address range of another block in "
-        "the same memoryMap. The address range of an address block is [baseAddress, "
-        "baseAddress + addressBlockSize - 1]."
+        "shall have a baseAddress that falls within the address range of another block in the "
+        "same memoryMap. The address range of an address block is the range [baseAddress, "
+        "baseAddress + addressBlockSize - 1] where addressBlockSize is the size of the address "
+        "block in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where "
+        "dim is the maximum number of elements for each of n dimensions."
     ),
 )
 

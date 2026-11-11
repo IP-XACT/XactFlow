@@ -17,10 +17,10 @@ stub(
     single_doc_check=False,
     post_config=True,
     description=(
-        "A value specified as a complexTiedValueExpression shall be resolved to string "
+        "A valued specified as an complexTiedValueExpression shall be resolved to string "
         "values \"default\" or \"open\" or to an unsigned bit vector as specified by the "
-        "SystemVerilog specification, where the vector size is determined by the port slice "
-        "width in the ad hoc connection."
+        "SystemVerilog specification, where the vector size is determined the port slice width "
+        "in the ad-hoc connection."
     ),
 )
 
@@ -102,7 +102,7 @@ stub(
     name="unsignedBitVectorExpression",
     single_doc_check=True,
     post_config=False,
-    description="A value specified as an unsignedBitVectorExpression shall be resolved to an unsigned bit vector as specified by the SystemVerilog specification, where the vector size is determined by an external value (e.g. field size for reset-value).",
+    description="A value specified as an unsignedBitVectorExpression shall be resolved to an unsigned bit vector as specified by the SystemVerilog specification, where the vector size is determined by an external value (e.g., field-size for reset-value).",
 )
 
 stub(
@@ -120,7 +120,7 @@ stub(
     name="sformatfArgCount",
     single_doc_check=True,
     post_config=False,
-    description="When $sformatf() is used within an accessHandle element, the invocation must have at least as many arguments beyond the format argument as the format has escapes which require an argument.",
+    description="When $sformatf() is used within an accessHandle element the invocation must have at least as many arguments beyond the format argument as the format has escapes which require an argument.",
 )
 
 stub(
@@ -129,13 +129,13 @@ stub(
     name="sformatfArgType",
     single_doc_check=True,
     post_config=False,
-    description="When $sformatf() is used within an accessHandle element, the type of an argument must match the format escape's allowed arguments.",
+    description="When $sformatf() is used within an accessHandle element the type of an argument must match the format escape allowed arguments.",
 )
 
 stub(
     id="SCR 14.14",
     table="B.14",
-    name="EscapeSequences",
+    name="Escape sequences",
     single_doc_check=True,
     post_config=False,
     description="The escape sequences (not functions) $ipxact_index_value and $ipxact_parameter_value can only be used within values of displayName, description, and shortDescription elements.",
@@ -144,7 +144,7 @@ stub(
 stub(
     id="SCR 14.15",
     table="B.14",
-    name="ipxact_index_value",
+    name="$ipxact_index_value",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_index_value() can only be used within values of pathSegment elements.",
@@ -153,7 +153,7 @@ stub(
 stub(
     id="SCR 14.16",
     table="B.14",
-    name="ipxact_field_value",
+    name="$ipxact_field_value",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_field_value() can only be used within values of mode condition elements.",
@@ -162,7 +162,7 @@ stub(
 stub(
     id="SCR 14.17",
     table="B.14",
-    name="ipxact_port_value",
+    name="$ipxact_port_value",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_port_value() can only be used within values of mode condition elements.",
@@ -171,7 +171,7 @@ stub(
 stub(
     id="SCR 14.18",
     table="B.14",
-    name="ipxact_mode_condition",
+    name="$ipxact_mode_condition",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_mode_condition() can only be used within values of mode condition elements.",
@@ -180,7 +180,7 @@ stub(
 stub(
     id="SCR 14.19",
     table="B.14",
-    name="ipxact_packetfield_value",
+    name="$ipxact_packetfield_value",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_packetfield_value() can only be used within values of packetField width elements.",
@@ -189,7 +189,7 @@ stub(
 stub(
     id="SCR 14.20",
     table="B.14",
-    name="ipxact_absdefport_value",
+    name="$ipxact_absdefport_value",
     single_doc_check=True,
     post_config=False,
     description="The function $ipxact_absdefport_value() can only be used within values of packetField width elements.",
@@ -210,7 +210,7 @@ stub(
     name="ModeValueMustExist",
     single_doc_check=False,
     post_config=False,
-    description="When using $ipxact_mode_condition(<mode>) in a string expression, the referenced <mode> must exist as a visible mode within the containing component.",
+    description="When using $ipxact_mode_condition(<mode>) in a string expression the referenced <mode> must exist as a visible mode within the containing component.",
 )
 
 stub(
@@ -219,7 +219,7 @@ stub(
     name="ParameterValueParameterExists",
     single_doc_check=False,
     post_config=False,
-    description="When using escape sequence $ipxact_parameter_value(<parameter-id>), the referenced parameter with id==<parameter-id> must be defined within the scope of the containing top level element.",
+    description="When using escape sequence $ipxact_parameter_value(<parameter id>), the referenced parameter with id==<parameter-id> must be defined within the scope of the containing top level element.",
 )
 
 stub(
@@ -237,7 +237,7 @@ stub(
     name="qualifiedExpression",
     single_doc_check=True,
     post_config=True,
-    description="The value of a qualifiedExpression in a defaultValue of a wire port shall resolve to an unsignedBitExpression, unsignedBitVectorExpression, realExpression, or realVectorExpression depending on whether the port is digital/analog and scalar/vector.",
+    description="The value of a qualifiedExpression in a defaultValue of a wire port shall resolve to an unsignedBitExpression, unsignedBitVectorExpression, realExpression, or realVectorExpression if the port is digital and scalar, digital and vector, analog and scalar, or analog and vector, respectively.",
 )
 
 stub(
@@ -264,7 +264,7 @@ stub(
     name="PortValueAbsDefPortExists",
     single_doc_check=False,
     post_config=False,
-    description="When using $ipxact_absdefport_value(<portRef>) in a packetField, the referenced <portRef> must exist as ipxact:port of the containing abstraction definition.",
+    description="When using $ipxact_absdefport_value(<portRef>) in a packetField the referenced <portRef> must exist as ipxact:port of the containing abstraction definition.",
 )
 
 stub(
@@ -273,7 +273,7 @@ stub(
     name="PacketFieldValuePacketFieldExists",
     single_doc_check=True,
     post_config=False,
-    description="When using $ipxact_packetfield_value(<packetFieldRef>) in a packetField width, the referenced <packetFieldRef> must exist as ipxact:packetField within the object hierarchy of the containing ipxact:packet.",
+    description="When using $ipxact_packetfield_value(<packetFieldRef>) in a pcketField width the referenced <packetFieldRef> must exist as ipxact:packetField within the object hierarchy of the containing ipxact:packet.",
 )
 
 stub(

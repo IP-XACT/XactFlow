@@ -16,7 +16,7 @@ stub(
     post_config=True,
     description=(
         "Within a channel element, all the busInterfaceRef elements shall refer to compatible "
-        "abstraction definitions, i.e. the VLNVs of the abstractionType elements within the "
+        "abstraction definitions, i.e., the VLNVs of the abstractionType elements within the "
         "busInterface elements shall reference compatible abstractionDefinitions. "
         "Compatibility of the abstraction definitions implies compatibility of their "
         "associated bus definitions."
@@ -39,9 +39,10 @@ stub(
     single_doc_check=False,
     post_config=True,
     description=(
-        "A channel can be connected to no more mirrored-initiator busInterfaces than the "
-        "least value of maxInitiators in the bus definitions referenced by the connected bus "
-        "interfaces. A channel may connect ports with different bus definitions, and hence "
+        "A channel can be connected to no more mirrored-initiator busInterfaces than the least "
+        "value of maxInitiators in the bus definitions referenced by the connected bus "
+        "interfaces (whether these interfaces are mirrored-initiator or mirrored-target "
+        "interfaces). A channel may connect ports with different bus definitions, and hence "
         "different values of maxInitiators, as long as the bus definitions are compatible."
     ),
 )
@@ -54,9 +55,10 @@ stub(
     post_config=True,
     description=(
         "A channel can be connected to no more mirrored-target bus interfaces than the least "
-        "value of maxTargets in the bus definitions referenced by the connected bus "
-        "interfaces. A channel may connect ports with different bus definitions, and hence "
-        "different values of maxTargets, as long as the bus definitions are compatible."
+        "value of maxTargets in the bus definitions referenced by the connected bus interfaces "
+        "(whether these interfaces are mirrored-initiator or mirrored-target interfaces). A "
+        "channel may connect ports with different bus definitions, and hence different values "
+        "of maxTargets, as long as the bus definitions are compatible."
     ),
 )
 
@@ -102,8 +104,8 @@ stub(
     post_config=False,
     description=(
         "An abstractors element of an interconnectionConfiguration element in a design "
-        "configuration document that references an initiator-to-mirrored-initiator "
-        "connection shall reference only abstractors with an abstractorMode of initiator."
+        "configuration document that references an initiator–to–mirrored-initiator connection "
+        "shall reference only abstractors with an abstractorMode of initiator."
     ),
 )
 
@@ -115,9 +117,9 @@ stub(
     post_config=False,
     description=(
         "An abstractors element of an interconnectionConfiguration element in a design "
-        "configuration document that references a target-to-mirrored-target interconnection "
-        "in the corresponding design shall reference only abstractors with an abstractorMode "
-        "of target."
+        "configuration document that references a target–to–mirrored-target interconnection in "
+        "the corresponding design shall reference only abstractors with an abstractorMode of "
+        "target."
     ),
 )
 
@@ -129,9 +131,9 @@ stub(
     post_config=False,
     description=(
         "An abstractors element of an interconnectionConfiguration element in a design "
-        "configuration document that references a system-to-mirrored-system interconnection "
-        "in the corresponding design shall reference only abstractors with an abstractorMode "
-        "of system."
+        "configuration document that references a system–to–mirrored-system interconnection in "
+        "the corresponding design shall reference only abstractors with an abstractorMode of "
+        "system."
     ),
 )
 
@@ -159,7 +161,7 @@ stub(
         "In the list of abstractor elements within an abstractors element in an "
         "interconnectionConfiguration element, the first abstractionType element of the first "
         "referenced abstractor shall be compatible with the abstractionType element of the "
-        "initiator, system, or mirrored-target endpoint of the interconnection."
+        "initiator, system, or mirrored-target endpoint of the interconnection.a"
     ),
 )
 
@@ -171,9 +173,9 @@ stub(
     post_config=False,
     description=(
         "In the list of abstractor elements within an abstractors element an "
-        "interconnectionConfiguration element, the second abstractionType element of the "
-        "last referenced abstractor shall be compatible with the abstractionType element of "
-        "the mirrored-initiator, mirrored-system, or target endpoint of the interconnection."
+        "interconnectionConfiguration element, the second abstractionType element of the last "
+        "referenced abstractor shall be compatible with the abstractionType element of the "
+        "mirrored-initiator, mirrored-system, or target endpoint of the interconnection.a"
     ),
 )
 
@@ -187,9 +189,8 @@ stub(
         "In the list of abstractor elements within an abstractors element an "
         "interconnectionConfiguration element, the first abstractionType element of every "
         "referenced abstractor, except the first, shall be compatible with the second "
-        "abstractionType element of the previous abstractor in the interconnectionConfiguration "
-        "list. SCR 3.12-SCR 3.14 together mean the abstractors associated with an "
-        "interconnection need to form a non-looping chain between the two ends."
+        "abstractionType element of the previous abstractor in the "
+        "interconnection-Configuration list.a"
     ),
 )
 
@@ -213,9 +214,10 @@ stub(
     post_config=False,
     description=(
         "If abstraction definition AA is an abstraction of bus definition A and abstraction "
-        "definition AB is an abstraction of bus definition B, then AA shall contain an "
-        "extends element referencing AB only if bus definition A contains an extends element "
-        "referencing bus definition B. If AA extends AB, AA and AB need to be abstractions of "
+        "definition AB is an abstraction of bus definition B, then abstraction definition AA "
+        "shall contain an extends element referencing abstraction definition AB only if bus "
+        "definition A contains an extends element referencing bus definition B. If abstraction "
+        "definition AA extends abstraction definition AB, AA and AB need to be abstractions of "
         "different buses."
     ),
 )
@@ -237,7 +239,7 @@ stub(
     post_config=False,
     description=(
         "If multiple abstractors elements appear in an interconnectionConfiguration, then the "
-        "referenced interconnection shall be a broadcast connection, i.e. contain more than "
-        "two interfaces."
+        "referenced interconnection shall be a broadcast connection (i.e., contain more than "
+        "two interfaces)."
     ),
 )

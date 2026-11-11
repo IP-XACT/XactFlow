@@ -29,12 +29,14 @@ stub(
     post_config=False,
     description=(
         "If the abstraction definition referenced by an abstractionType specifies an "
-        "initiative value of requires for a logical transactional port for that interface "
-        "mode, the port map shall map that logical port only to a component port with an "
-        "initiative value of requires, both, or phantom, or to a component port with an "
-        "allLogicalInitiativesAllowed attribute value of true. For system interfaces, the "
-        "port initiative values are looked up from the matching onSystem element; for "
-        "mirrored interfaces, the bus port initiative values are reversed before comparison."
+        "initiative value for a logical transactional port of requires for that interface mode "
+        "of bus interface, the port map shall map that logical port only to a component port "
+        "with an initiative value of requires, both, or phantom or to a component port with an "
+        "allLogicalInitiativesAllowed attribute with the value true. For system interfaces, "
+        "the port initiative values shall be looked up from the onSystem element with the "
+        "group name matching that of the abstractionType’s abstraction-definition. For "
+        "mirrored interfaces, the bus port initiative values shall be reversed before doing "
+        "the comparison."
     ),
 )
 
@@ -46,12 +48,14 @@ stub(
     post_config=False,
     description=(
         "If the abstraction definition referenced by an abstractionType specifies an "
-        "initiative value of provides for a logical transactional port for that interface "
-        "mode, the port map shall map that logical port only to a component port with an "
-        "initiative value of provides, both, or phantom, or to a component port with an "
-        "allLogicalInitiativesAllowed attribute value of true. For system interfaces, the "
-        "port initiative values are looked up from the matching onSystem element; for "
-        "mirrored interfaces, the bus port initiative values are reversed before comparison."
+        "initiative value for a logical transactional port of provides for that interface mode "
+        "of bus or abstractor interface, the port map shall map that logical port only to a "
+        "component port with an initiative value of provides, both, or phantom or to a "
+        "component port with an allLogicalInitiativesAllowed attribute with the value true. "
+        "For system interfaces, the port initiative values shall be looked up from the "
+        "onSystem element with the group name matching that of the abstractionType’s "
+        "abstraction-definition. For mirrored interfaces, the bus port initiative values shall "
+        "be reversed before doing the comparison."
     ),
 )
 
@@ -63,13 +67,14 @@ stub(
     post_config=False,
     description=(
         "If the abstraction definition referenced by an abstractionType specifies an "
-        "initiative value of both for a logical transactional port for that interface mode "
-        "and the bus interface has a port map, the port map shall map that logical port only "
-        "to a component port with an initiative value of both or phantom, or to a component "
-        "port with an allLogicalInitiativesAllowed attribute value of true. For system "
-        "interfaces, the port initiative values are looked up from the matching onSystem "
-        "element; for mirrored interfaces, the bus port initiative values are reversed "
-        "before comparison."
+        "initiative value for a logical transactional port of both for that interface mode of "
+        "the bus or abstraction interface and if the bus interface has a port map, the port "
+        "map shall map that logical port only to a component port with an initiative value of "
+        "both or phantom or to a component port with an allLogicalInitiativesAllowed attribute "
+        "with the value true. For system interfaces, the port initiative values shall be "
+        "looked up from the onSystem element with the group name matching that of the "
+        "abstractionType’s abstraction-definition. For mirrored interfaces, the bus port "
+        "initiative values shall be reversed before doing the comparison."
     ),
 )
 
@@ -80,13 +85,14 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by an abstractionType specifies a "
-        "direction of in for a logical wire port for that interface mode, the port map shall "
-        "map that logical port only to a component port with a direction of in, inout, or "
-        "phantom, or to a component port with an allLogicalDirectionsAllowed attribute value "
-        "of true. For system interfaces, the port directions are looked up from the matching "
-        "onSystem element; for mirrored interfaces, the bus port directions are reversed "
-        "before comparison."
+        "If the abstraction definition referenced by an abstractionType specifies a direction "
+        "for a logical wire port of in for that interface mode of bus interface, the port map "
+        "shall map that logical port only to a component port with a direction of in, inout, "
+        "or phantom or to a component port with an allLogicalDirectionsAllowed attribute with "
+        "the value true. For system interfaces, the port directions shall be looked up from "
+        "the onSystem element with the group name matching that of the abstractionType’s "
+        "abstraction-definition. For mirrored interfaces, the bus port directions shall be "
+        "reversed before doing the comparison."
     ),
 )
 
@@ -97,13 +103,14 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by an abstractionType specifies a "
-        "direction of out for a logical wire port for that interface mode, the port map "
-        "shall map that logical port only to a component port with a direction of out, "
-        "inout, or phantom, or to a component port with an allLogicalDirectionsAllowed "
-        "attribute value of true. For system interfaces, the port directions are looked up "
-        "from the matching onSystem element; for mirrored interfaces, the bus port "
-        "directions are reversed before comparison."
+        "If the abstraction definition referenced by an abstractionType specifies a direction "
+        "for a logical wire port of out for that interface mode of bus interface, the port map "
+        "shall map that logical port only to a component port with a direction of out, inout, "
+        "or phantom or to a component port with an allLogicalDirectionsAllowed attribute with "
+        "the value true. For system interfaces, the port directions shall be looked up from "
+        "the onSystem element with the group name matching that of the abstractionType’s "
+        "abstraction-definition. For mirrored interfaces, the bus port directions shall be "
+        "reversed before doing the comparison."
     ),
 )
 
@@ -114,13 +121,14 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by an abstractionType specifies a "
-        "direction of inout for a logical wire port for that interface mode, the port map "
-        "shall map that logical port only to a component port with a direction of inout or "
-        "phantom, or to a component port with an allLogicalDirectionsAllowed attribute value "
-        "of true. For system interfaces, the port directions are looked up from the matching "
-        "onSystem element; for mirrored interfaces, the bus port directions are reversed "
-        "before comparison."
+        "If the abstraction definition referenced by an abstractionType specifies a direction "
+        "for a logical wire port of inout for that interface mode of bus interface, the port "
+        "map shall map that logical port only to a component port with a direction of inout or "
+        "phantom or to a component port with an allLogicalDirectionsAllowed attribute with the "
+        "value true. For system interfaces, the port directions shall be looked up from the "
+        "onSystem element with the group name matching that of the abstractionType’s "
+        "abstraction-definition. For mirrored interfaces, the bus port directions shall be "
+        "reversed before doing the comparison."
     ),
 )
 
@@ -131,12 +139,15 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by an abstractionType specifies a presence "
-        "value of required for a port for that interface mode and the bus interface has a "
-        "port map, the port shall be in that port map. For system interfaces, the port "
-        "presence is looked up from the matching onSystem element; mirrored bus interfaces "
-        "are looked up as if not mirrored. Port maps are optional even on buses with "
-        "required ports; presence does not apply to interfaces of type monitor."
+        "If the abstraction definition referenced by an abstractionType specifies, for a port, "
+        "a presence value of required for that interface mode of bus interface and if the bus "
+        "interface has a port map, the port shall be in that port map. For system interfaces, "
+        "the port presence shall be looked up from the onSystem element with the group name "
+        "matching that of the abstractionType’s abstraction-definition. Mirrored bus "
+        "interfaces shall be looked up as if they were not mirrored. Port maps are optional, "
+        "even on buses with required ports. The third possible presence value (optional) "
+        "neither forces nor forbids the inclusion of the port in the port map. Presence does "
+        "not apply to interfaces of type monitor."
     ),
 )
 
@@ -165,10 +176,11 @@ stub(
     single_doc_check=False,
     post_config=True,
     description=(
-        "If abstraction definition A extends abstraction definition B, then A shall have "
-        "port elements for every port declared in B. If a port in B is not used in bus "
-        "interfaces using abstraction definition A, then in A that port shall have a "
-        "presence value of illegal for all bus interface modes."
+        "If abstraction definition A extends abstraction definition B, then abstraction "
+        "definition A shall have port elements for every port declared in abstraction "
+        "definition B. If a port in abstraction definition B is not used in bus interfaces "
+        "using abstraction definition A, then, in abstraction definition A, that port shall "
+        "have a presence value of illegal for all bus interface modes."
     ),
 )
 
@@ -179,11 +191,12 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by a bus or abstraction interface "
-        "specifies a port is a wire port, the port map shall map that logical port only to a "
-        "wire component port or a structured component (sub)port. If the physical port "
-        "references a structured (sub)port then the (sub)port packed attribute shall be true "
-        "or the logical port shall not have a width."
+        "If the abstraction definition referenced by a bus or abstraction interface specifies "
+        "a port is a wire port (i.e., the port element contains a wire subelement), the port "
+        "map shall map that logical port only to a wire component port or a structured "
+        "component (sub)port. If the physical port references a structured (sub)port then the "
+        "(sub)port attribute packed value shall be true or the logical port shall not have a "
+        "width."
     ),
 )
 
@@ -194,9 +207,10 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "If the abstraction definition referenced by a bus or abstraction interface "
-        "specifies a port is a transactional port, the port map shall map that logical port "
-        "only to a transactional component port."
+        "If the abstraction definition referenced by a bus or abstraction interface specifies "
+        "a port is a transactional port (i.e., the port element contains a transactional "
+        "subelement), the port map shall map that logical port only to a transactional "
+        "component port."
     ),
 )
 
@@ -235,10 +249,12 @@ stub(
     description=(
         "If the abstraction definition defines ports with a presence value of illegal for a "
         "given interface mode, then the indicated ports may not appear in the port map of a "
-        "bus interface of that mode type. For system interfaces, the port presence is looked "
-        "up from the matching onSystem element; mirrored bus and abstraction interfaces are "
-        "looked up as if not mirrored. Port maps are optional even on buses with required "
-        "ports."
+        "bus interface of that mode type. For system interfaces, the port presence shall be "
+        "looked up from the onSystem element with the group name matching that of the bus or "
+        "abstraction interfaces. Mirrored bus and abstraction interfaces shall be looked up as "
+        "if they were not mirrored. Port maps are optional, even on buses with required ports. "
+        "The third possible presence value (optional) neither forces nor forbids the inclusion "
+        "of the port in the port map."
     ),
 )
 
@@ -248,7 +264,7 @@ stub(
     name="PhysicalPortRangeExists",
     single_doc_check=True,
     post_config=False,
-    description="The range of a physicalPort shall be a subset of the range of the referenced port in the component's model element.",
+    description="The range of a physicalPort shall be a subset of the range of the referenced port in the component’s model element.",
 )
 
 stub(
@@ -279,7 +295,7 @@ stub(
     single_doc_check=True,
     post_config=True,
     description=(
-        "Within a single bus interface, no logical bit may be mapped more than once, i.e. if "
+        "Within a single bus interface, no logical bit may be mapped more than once, i.e., if "
         "two or more logicalPort elements for that bus interface reference the same "
         "abstraction definition port, their ranges shall not overlap."
     ),
@@ -293,9 +309,9 @@ stub(
     post_config=False,
     description=(
         "If a transactional port in a component is mapped in a bus interface to a "
-        "transactional port in an abstraction definition, then the initiative, kind, "
-        "busWidth, and protocolType elements in that component port shall match those "
-        "defined in the abstraction definition's port."
+        "transactional port in an abstraction definition, then the initiative, kind, busWidth, "
+        "and protocolType elements in that component port shall match those defined in the "
+        "abstraction definition’s port."
     ),
 )
 
@@ -308,13 +324,16 @@ stub(
     description=(
         "Transactional ports shall be connected together (by an ad hoc connection or through "
         "an interconnection) only if they have compatible initiative, busWidth, kind, and "
-        "protocol elements and if none of them contains a transTypeDefs element or all of "
-        "them contain compatible transTypeDefs elements. Two initiatives with any "
-        "provides-requires combination are compatible; two kinds are compatible if equal or "
-        "both sockets; two busWidths are compatible if equal; two protocols are compatible "
-        "if both tlm, or both custom with matching payloads if defined; two transTypeDefs "
-        "are compatible if their typeParameters are equal and serviceTypeDefs typeNames "
-        "match when defined and not implicit."
+        "protocol elements and if none of them contains a transTypeDefs element or all of them "
+        "contain compatible transTypeDefs elements. The following definitions apply here: a) "
+        "Two initiatives with any provides-requires combination are compatible. b) Two kinds "
+        "are compatible if either they are equal or both are sockets (simple_socket, "
+        "multi_socket, or tlm_socket). c) Two busWidths are compatible if they are equal on "
+        "both side of the connection. d) Two protocols are compatible if their protocolTypes "
+        "are both tlm. e) Two protocols are compatible if their protocolTypes are both custom "
+        "and (if defined) their payloads are the same. f) Two transTypeDefs are compatible if "
+        "their typeParameters values are equal and their serviceTypeDefs typeNames (if defined "
+        "and not implicit) are the same."
     ),
 )
 
@@ -336,8 +355,8 @@ stub(
     description=(
         "All wire (sub)ports and all structured (sub)ports with attribute packed set to true "
         "referenced in an ad hoc connection shall reference the same number of bits. If no "
-        "range is specified for a non-scalar port, the full range from the port definition "
-        "is presumed."
+        "range is specified for a non-scalar port, then the full range from the port "
+        "definition is presumed."
     ),
 )
 
@@ -347,7 +366,7 @@ stub(
     name="TiedValueDefaultHasDefault",
     single_doc_check=False,
     post_config=False,
-    description="All ports referenced in an ad hoc connection that has a tiedValue of default shall have a default value defined.",
+    description="All ports references in an ad hoc connection that has a tiedValue of default shall have a default value defined.",
 )
 
 stub(
@@ -424,9 +443,9 @@ stub(
     single_doc_check=False,
     post_config=True,
     description=(
-        "If the abstraction definition referenced by a bus or abstraction interface "
-        "specifies, for a port mapped in the bus-interface, a match value of true, the bus "
-        "interface can only be connected to a bus interface which maps this same port."
+        "If the abstraction definition referenced by a bus or abstraction interface specifies, "
+        "for a port, mapped in the bus-interface a match value of true the bus interface can "
+        "only be connected to a bus-interface which maps this same port."
     ),
 )
 
@@ -438,9 +457,9 @@ stub(
     post_config=True,
     description=(
         "If an abstraction definition port has a width defined with allBits set, any bus "
-        "interface containing a port map referencing that port shall map all the bits of "
-        "that port, i.e. every bit in the range [width-1:0] shall be mapped precisely once "
-        "in the port maps of that bus interface."
+        "interface containing a port map referencing that port shall map all the bits of that "
+        "port; i.e., every bit in the range [width-1:0] shall be mapped precisely once in the "
+        "port maps of that bus interface."
     ),
 )
 
@@ -450,7 +469,7 @@ stub(
     name="busDefinitionExtendsDirectConnection",
     single_doc_check=False,
     post_config=False,
-    description="If bus definition A extends bus definition B, then A cannot specify a different value for directConnection.",
+    description="If bus definition A extends bus definition B, then bus definition A cannot specify a different value for directConnection.",
 )
 
 stub(
@@ -459,7 +478,7 @@ stub(
     name="busDefinitionExtendsBroadcast",
     single_doc_check=False,
     post_config=False,
-    description="If bus definition A extends bus definition B, then A cannot specify a different value for broadcast.",
+    description="If bus definition A extends bus definition B, then bus definition A cannot specify a different value for broadcast.",
 )
 
 stub(
@@ -468,7 +487,7 @@ stub(
     name="busDefinitionExtendsIsAddressable",
     single_doc_check=False,
     post_config=False,
-    description="If bus definition A extends bus definition B, then A cannot specify a different value for isAddressable.",
+    description="If bus definition A extends bus definition B, then bus definition A cannot specify a different value for isAddressable.",
 )
 
 stub(
@@ -477,7 +496,7 @@ stub(
     name="busDefinitionExtendsMaxInitiators",
     single_doc_check=False,
     post_config=True,
-    description="If bus definition A extends bus definition B, then A cannot specify a higher number for maxInitiators.",
+    description="If bus definition A extends bus definition B, then bus definition A cannot specify a higher number for maxInitiators.",
 )
 
 stub(
@@ -486,7 +505,7 @@ stub(
     name="busDefinitionExtendsMaxTargets",
     single_doc_check=False,
     post_config=True,
-    description="If bus definition A extends bus definition B, then A cannot specify a higher number for maxTargets.",
+    description="If bus definition A extends bus definition B, then bus definition A cannot specify a higher number for maxTargets.",
 )
 
 stub(
@@ -495,7 +514,7 @@ stub(
     name="busDefinitionExtendsSystemGroupNames",
     single_doc_check=False,
     post_config=False,
-    description="If bus definition A extends bus definition B, then A can only add new group names.",
+    description="If bus definition A extends bus definition B, then bus definition A can only add new group names.",
 )
 
 stub(
@@ -504,7 +523,7 @@ stub(
     name="abstractionDefinitionPortExtendsQualifiers",
     single_doc_check=False,
     post_config=False,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify different qualifiers.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify different qualifiers.",
 )
 
 stub(
@@ -513,7 +532,7 @@ stub(
     name="abstractionDefinitionPortExtendsDirection",
     single_doc_check=False,
     post_config=False,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify a different direction.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify a different direction.",
 )
 
 stub(
@@ -522,7 +541,7 @@ stub(
     name="abstractionDefinitionPortExtendsInitiative",
     single_doc_check=False,
     post_config=False,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify a different initiative.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify a different initiative.",
 )
 
 stub(
@@ -531,7 +550,7 @@ stub(
     name="abstractionDefinitionPortExtendsKind",
     single_doc_check=False,
     post_config=False,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify a different kind.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify a different kind.",
 )
 
 stub(
@@ -540,7 +559,7 @@ stub(
     name="abstractionDefinitionPortExtendsBusWidth",
     single_doc_check=False,
     post_config=True,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify a different busWidth.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify a different busWidth.",
 )
 
 stub(
@@ -549,7 +568,7 @@ stub(
     name="abstractionDefinitionPortExtendsProtocol",
     single_doc_check=False,
     post_config=False,
-    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in A cannot specify a different protocol.",
+    description="If a port in abstraction definition A extends a port in abstraction definition B, then the extending port in abstraction definition A cannot specify a different protocol.",
 )
 
 stub(
@@ -587,11 +606,13 @@ stub(
     post_config=False,
     description=(
         "Wire and structured ports shall be connected together (by an ad hoc connection or "
-        "through an interconnection) only if they are compatible: two wire (sub)ports are "
-        "compatible; a wire (sub)port and a structured (sub)port are compatible if the "
-        "structured port is packed; two structured (sub)ports are compatible if both are "
-        "packed, or if both are unpacked and have the same type (both struct, both union, or "
-        "both interface, with matching typeName, typeDefinition, and typeParameters)."
+        "through an interconnection) only if they are compatible. The following definitions "
+        "apply here: a) Two wire (subports) are compatible b) A wire (sub)port and a "
+        "structured (sub)port are compatible if the structured port is packed c) Two "
+        "structured (sub)ports are compatible if they both are packed d) Two structured "
+        "(sub)ports are compatible if they both are unpacked and have the same type, i.e., 1) "
+        "they are both a struct, or both a union, or both an interface, and 2) they both have "
+        "the same typeName, typeDefinition, and typeParameters."
     ),
 )
 
@@ -619,7 +640,7 @@ stub(
     name="isIoPortEquivalenceClass",
     single_doc_check=False,
     post_config=True,
-    description="In a structured interface port connection equivalence class, all subPorts with attribute isIO set to true that are named the same shall have the same port equivalence class.",
+    description="In a structured interface port connection equivalence class, all subPorts with attribute isIO set to true that are named the same, shall have the same port equivalence class.",
 )
 
 stub(

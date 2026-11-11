@@ -12,6 +12,8 @@ from .model import (
     LinkedInstance,
     LinkedInterconnection,
     LinkedMonitorInterconnection,
+    ResolvedExternalPortReference,
+    ResolvedHierInterface,
     ResolvedInterfaceEndpoint,
     ResolvedPortReference,
 )
@@ -21,17 +23,19 @@ def link(
     design: ipxact.Design,
     library: Library,
     design_configuration: Optional[ipxact.DesignConfiguration] = None,
+    component: Optional[ipxact.Component] = None,
 ) -> LinkedDesign:
     """Resolve a Design (and optional DesignConfiguration) against a Library.
 
-    Builds the best-effort resolved object graph first (every reference that can be resolved
-    is), then runs the SCR rule registry to explain what could not be: single-doc rules run
-    here against the design (and design configuration) directly, since the top-level design
-    passed to this function is typically not itself part of a scanned library, then post-config
-    rules run against the linked result. Callers that did get this design from a
-    Library.scan already got its single-doc diagnostics from that scan; running them again here
-    is deliberate, since a rule like SCR 2.3 only needs the design regardless of where it came
-    from.
+    Every reference that can be resolved is, then the SCRs explain the others: the single-doc
+    rules on the design and the design configuration, then the other rules on the linked result.
+    The single-doc rules run even if the design came from a Library.scan, which already ran
+    them: the design given here is often not in the library, e.g. the file given to the CLI.
+
+    The hierInterface and externalPortReference elements refer to the bus interfaces and ports
+    of the component containing the design: `component` if given, otherwise the one component
+    of the library with a view instantiating the design (see _instantiates_design). With none,
+    or several, they are not resolved, and a warning says so.
     """
 
     linked = LinkedDesign(
@@ -41,6 +45,7 @@ def link(
         design_configuration=design_configuration,
     )
 
+    _find_containing_component(linked, component)
     _resolve_instances(linked)
     _resolve_interconnections(linked)
     _resolve_monitor_interconnections(linked)
@@ -52,6 +57,82 @@ def link(
     linked.diagnostics.extend(SCR.run_post_config_checks(linked))
 
     return linked
+
+
+def _instantiates_design(component: ipxact.Component, design_vlnv: ipxact.VLNV, library: Library) -> bool:
+    """Whether a view of the component instantiates the design: through its designInstantiationRef,
+    or, without one, through the designRef of the design configuration its
+    designConfigurationInstantiationRef references (see 6.15.1.2 and SCR 1.16).
+    """
+    model = component.model
+    if model is None:
+        return False
+    design_instantiations = {i.name: i for i in model.design_instantiations}
+    configuration_instantiations = {i.name: i for i in model.design_configuration_instantiations}
+    for view in model.views:
+        if view.design_instantiation_ref is not None:
+            instantiation = design_instantiations.get(view.design_instantiation_ref)
+            if instantiation is not None and instantiation.design_ref.vlnv == design_vlnv:
+                return True
+        elif view.design_configuration_instantiation_ref is not None:
+            instantiation = configuration_instantiations.get(view.design_configuration_instantiation_ref)
+            if instantiation is None:
+                continue
+            configuration = library.get_design_configuration(instantiation.design_configuration_ref.vlnv)
+            if (
+                configuration is not None
+                and configuration.design_ref is not None
+                and configuration.design_ref.vlnv == design_vlnv
+            ):
+                return True
+    return False
+
+
+def _find_containing_component(linked: LinkedDesign, component: Optional[ipxact.Component]) -> None:
+    design = linked.design
+    if component is not None:
+        if not _instantiates_design(component, linked.vlnv, linked.library):
+            linked.diagnostics.append(
+                Diagnostic(
+                    message=f"component {component.vlnv}, given as the component containing design "
+                    f"{linked.vlnv}, has no view instantiating it",
+                    severity=Severity.ERROR,
+                    location=str(component.vlnv),
+                )
+            )
+        linked.component = component
+        return
+
+    candidates = [
+        document
+        for document in linked.library.documents()
+        if isinstance(document, ipxact.Component)
+        and _instantiates_design(document, linked.vlnv, linked.library)
+    ]
+    if len(candidates) == 1:
+        linked.component = candidates[0]
+        return
+
+    has_external_references = any(i.hier_interfaces for i in design.interconnections) or any(
+        a.external_port_references for a in design.ad_hoc_connections
+    )
+    if not has_external_references:
+        return
+    if candidates:
+        detail = (
+            f"several components of the library instantiate it "
+            f"({', '.join(str(c.vlnv) for c in candidates)}); pass the one to use to link()"
+        )
+    else:
+        detail = "no component of the library instantiates it"
+    linked.diagnostics.append(
+        Diagnostic(
+            message=f"hierInterface and externalPortReference elements of design {linked.vlnv} are "
+            f"not checked: {detail}",
+            severity=Severity.WARNING,
+            location=str(linked.vlnv),
+        )
+    )
 
 
 def _resolve_instances(linked: LinkedDesign) -> None:
@@ -100,12 +181,19 @@ def _resolve_interconnections(linked: LinkedDesign) -> None:
             interconnection.active_interface,
             *interconnection.other_active_interfaces,
         ]
-        interfaces = [(ai.component_instance_ref, ai.bus_ref) for ai in active_interfaces]
+        # A hierInterface has no componentInstanceRef: None stands for the containing component.
+        interfaces = [(ai.component_instance_ref, ai.bus_ref) for ai in active_interfaces] + [
+            (None, hi.bus_ref) for hi in interconnection.hier_interfaces
+        ]
         for instance_ref, bus_ref in dict.fromkeys(i for i in interfaces if interfaces.count(i) > 1):
+            interface = (
+                f"hierInterface '{bus_ref}'"
+                if instance_ref is None
+                else f"component instance '{instance_ref}' bus interface '{bus_ref}'"
+            )
             linked.diagnostics.append(
                 Diagnostic(
-                    message=f"interconnection '{interconnection.name}' connects component instance "
-                    f"'{instance_ref}' bus interface '{bus_ref}' to itself",
+                    message=f"interconnection '{interconnection.name}' connects {interface} to itself",
                     severity=Severity.ERROR,
                     location=f"{linked.vlnv}/{interconnection.name}",
                 )
@@ -125,10 +213,36 @@ def _resolve_interconnections(linked: LinkedDesign) -> None:
             LinkedInterconnection(
                 name=interconnection.name,
                 endpoints=resolved_endpoints,
-                hier_interfaces=list(interconnection.hier_interfaces),
+                hier_interfaces=_resolve_hier_interfaces(linked, interconnection),
                 source=interconnection,
             )
         )
+
+
+def _resolve_hier_interfaces(
+    linked: LinkedDesign, interconnection: ipxact.Interconnection
+) -> List[ResolvedHierInterface]:
+    if linked.component is None:
+        return []  # _find_containing_component warned, if there is any hierInterface
+    resolved = []
+    for hier_interface in interconnection.hier_interfaces:
+        bus_interface = next(
+            (bi for bi in linked.component.bus_interfaces if bi.name == hier_interface.bus_ref), None
+        )
+        if bus_interface is None:
+            # No Annex B rule covers this: SCR 2.1 is only about activeInterface. See 7.4.2.
+            linked.diagnostics.append(
+                Diagnostic(
+                    message=f"interconnection '{interconnection.name}' hierInterface busRef "
+                    f"'{hier_interface.bus_ref}' does not match a busInterface on component "
+                    f"{linked.component.vlnv}, which contains the design",
+                    severity=Severity.ERROR,
+                    location=f"{linked.vlnv}/{interconnection.name}",
+                )
+            )
+            continue
+        resolved.append(ResolvedHierInterface(bus_interface=bus_interface, source=hier_interface))
+    return resolved
 
 
 def _resolve_monitor_interconnections(linked: LinkedDesign) -> None:
@@ -161,8 +275,10 @@ def _resolve_monitor_interconnections(linked: LinkedDesign) -> None:
 
 
 def _resolve_ad_hoc_connections(linked: LinkedDesign) -> None:
-    # Same caveat as monitor interconnections: best-effort resolution, no SCR rule (Table B.2's
-    # ad hoc coverage) implemented yet to explain a reference that failed to resolve.
+    # SCR 13.5 (scr_13._check_ad_hoc_port_refs_exist) reports the references that do not resolve.
+    component_ports = {}
+    if linked.component is not None and linked.component.model is not None:
+        component_ports = {port.name: port for port in linked.component.model.ports}
     for ad_hoc in linked.design.ad_hoc_connections:
         resolved = [
             reference
@@ -174,6 +290,13 @@ def _resolve_ad_hoc_connections(linked: LinkedDesign) -> None:
         ]
         if resolved:
             linked.ad_hoc_connections[ad_hoc.name] = resolved
+        external = [
+            ResolvedExternalPortReference(port=component_ports[ref.port_ref], source=ref)
+            for ref in ad_hoc.external_port_references
+            if ref.port_ref in component_ports
+        ]
+        if external:
+            linked.ad_hoc_external_ports[ad_hoc.name] = external
 
 
 def _resolve_internal_port_reference(

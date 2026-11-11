@@ -26,7 +26,7 @@ stub(
     name="parameterIdRequired",
     single_doc_check=True,
     post_config=False,
-    description="A parameterId attribute is required in any element with a resolve attribute value of user or generated.",
+    description="An parameterId attribute is required in any element with a resolve attribute value of user or generated.",
 )
 
 stub(
@@ -39,8 +39,9 @@ stub(
         "configurableElementValue elements within componentInstance elements shall reference "
         "only configurable elements that exist in the component referenced by the enclosing "
         "componentInstance element, excluding those in a componentInstantiation or "
-        "designConfigurationInstantiation. The referenceId attribute value shall match the "
-        "parameterId attribute value of some configurable element of the component."
+        "designConfigurationInstantiation. The value of the referenceId attribute of the "
+        "configurableElementValue element shall match the value of the parameterId attribute "
+        "of some configurable element of the component."
     ),
 )
 
@@ -62,8 +63,8 @@ stub(
     description=(
         "If a configurableElementValue element references an element with a type attribute "
         "that does not specify a string and contains a minimum attribute, the value of the "
-        "configurableElementValue element shall be greater than or equal to the specified "
-        "value of the minimum attribute."
+        "configurableElementValue element shall be greater or equal to the specified value of "
+        "the minimum attribute."
     ),
 )
 
@@ -89,8 +90,8 @@ stub(
     post_config=False,
     description=(
         "If a configurableElementValue element references an element with a choiceRef "
-        "attribute, the value for the configurableElementValue subelement shall be one of "
-        "the values listed in the choice element referenced by the choiceRef attribute."
+        "attribute, the value for configurableElementValue subelement shall be one of the "
+        "values listed in the choice element referenced by the choiceRef attribute."
     ),
 )
 
@@ -103,9 +104,10 @@ stub(
     description=(
         "configurableElementValue elements within designConfigurationInstantiation elements "
         "shall reference only configurable elements that exist in the designConfiguration "
-        "referenced by the enclosing designConfigurationInstantiation element; the "
-        "parameterId attribute value shall match the parameterId attribute value of some "
-        "configurable element of the design configuration."
+        "referenced by the enclosing designConfigurationInstantiation element; the value of "
+        "the parameterId attribute of the configurableElementValue element shall match the "
+        "value of the parameterId attribute of some configurable element of the design "
+        "configuration."
     ),
 )
 
@@ -119,8 +121,9 @@ stub(
         "configurableElementValue elements within viewConfiguration elements shall reference "
         "only configurable elements that exist in the componentInstantiation or "
         "designConfigurationInstantiation referenced in the component view referenced by the "
-        "enclosing view element; the referenceId attribute value shall match the parameterId "
-        "attribute value of some configurable element of the component."
+        "enclosing view element; the value of the referenceId attribute of the "
+        "configurableElementValue element shall match the value of the parameterId attribute "
+        "of some configurable element of the component."
     ),
 )
 
@@ -132,8 +135,8 @@ stub(
     post_config=False,
     description=(
         "configurableElementValue elements within generatorChainConfiguration elements in "
-        "design configuration documents shall reference only configurable elements that "
-        "exist in the generator chain referenced by the generatorChainRef element."
+        "design configuration documents elements shall reference only configurable elements "
+        "that exist in the generator chain referenced by the generatorChainRef element."
     ),
 )
 
@@ -157,10 +160,10 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "A parameter's value or a configurable element's value shall be implicitly converted "
+        "A parameter’s value or a configurable element’s value shall be implicitly converter "
         "to the type and length specified by the type attribute and the vectors and arrays "
-        "elements, resulting in an error when the value cannot be cast to the specified type, "
-        "e.g. string to any other types and any other types to string."
+        "elements, respectively, resulting in an error when the value cannot be cast to the "
+        "specified type., e.g., string to any other types and any other types to string."
     ),
 )
 
@@ -270,8 +273,8 @@ stub(
     post_config=False,
     description=(
         "configurableElementValue elements within designInstantiation elements in component "
-        "documents shall reference only configurable elements that exist in the design "
-        "referenced by the enclosing designInstantiation element."
+        "documents elements shall reference only configurable elements that exist in the "
+        "design referenced by the enclosing designInstantiation element."
     ),
 )
 

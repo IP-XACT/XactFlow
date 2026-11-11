@@ -109,7 +109,7 @@ def _vref(vlnv: ipxact.VLNV) -> ipxact.VLNVRef:
     return ipxact.VLNVRef(vlnv.vendor, vlnv.library, vlnv.name, vlnv.version)
 
 
-def test_link_resolves_ad_hoc_connections_and_drops_unresolvable_refs():
+def test_link_resolves_ad_hoc_connections_and_reports_unresolvable_refs():
     component_vlnv = ipxact.VLNV("example.org", "ip", "withport", "1.0")
     component = ipxact.Component(
         vlnv=component_vlnv,
@@ -130,8 +130,7 @@ def test_link_resolves_ad_hoc_connections_and_drops_unresolvable_refs():
                 internal_port_references=[
                     ipxact.InternalPortReference(component_instance_ref="i0", port_ref="clk"),
                     ipxact.InternalPortReference(component_instance_ref="i1", port_ref="clk"),
-                    # this instance/port combination does not exist and should be silently
-                    # dropped: no SCR rule covers ad hoc connections yet in this first slice.
+                    # this instance/port combination does not exist: dropped, and SCR 13.5 reports it.
                     ipxact.InternalPortReference(component_instance_ref="i1", port_ref="does_not_exist"),
                 ],
             )
@@ -143,6 +142,7 @@ def test_link_resolves_ad_hoc_connections_and_drops_unresolvable_refs():
     assert set(linked.ad_hoc_connections) == {"clk_net"}
     resolved = linked.ad_hoc_connections["clk_net"]
     assert [(r.instance.instance_name, r.port.name) for r in resolved] == [("i0", "clk"), ("i1", "clk")]
+    assert [d.rule_id for d in linked.diagnostics] == ["SCR 13.5"]
 
 
 def test_link_resolves_monitor_interconnections():

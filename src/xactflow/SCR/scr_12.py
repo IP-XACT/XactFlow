@@ -59,7 +59,7 @@ stub(
     name="NoInputDriveMirroredModeConstraint",
     single_doc_check=True,
     post_config=False,
-    description="An onInitiator, onTarget, or onSystem element of a wire port with direction in shall not contain a drive constraint within its mirroredModeConstraint element.",
+    description="An onInitiator, onTarget, or onSystem element of a wire port with direction in shall not contain a drive constraint with its mirroredModeConstraint element.",
 )
 
 stub(
@@ -68,7 +68,7 @@ stub(
     name="ConstraintClockExists",
     single_doc_check=True,
     post_config=False,
-    description="The clockName in a timing constraint of a component port shall be the clockName of a clockDriver or otherClockDriver element within the component, unless none are present, in which case it shall be the name of another component port.",
+    description="The clockName in a timing constraint of a component port shall be the clockName of a clockDriver or otherClockDriver element within the component unless there are no clockDriver or otherClockDriver elements present. In that case, the clockName shall be the name of another component port.",
 )
 
 stub(

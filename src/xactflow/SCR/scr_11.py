@@ -24,7 +24,7 @@ stub(
     name="hierMapSameLocations",
     single_doc_check=False,
     post_config=True,
-    description="For any member of a hierarchical family of target or mirrored-initiator bus interfaces, if an address resolves to a location outside the containing hierarchical family of components, that address shall reference the same location in every addressable member of the family.",
+    description="For any member of a hierarchical family of target or mirrored-initiator bus interfaces, if an address resolves to reference a location outside the containing hierarchical family of components, that address shall reference the same location (i.e., the same address on the same bus) in every addressable member of the hierarchical family.",
 )
 
 stub(
@@ -33,7 +33,7 @@ stub(
     name="hierMapSameProperties",
     single_doc_check=False,
     post_config=True,
-    description="If any bit address is resolved to a bit within an address block by any member of a hierarchical family of target bus interfaces, all addressable members of that family shall resolve that bit address to a bit with identical behavioral properties.",
+    description="If any bit address (i.e., address plus bit offset) is resolved to a bit within an address block by any member of a hierarchical family of target bus interfaces, all addressable members of that family shall resolve that bit address to a bit with identical behavioral properties.",
 )
 
 stub(
@@ -42,5 +42,5 @@ stub(
     name="hierCpuSameLocations",
     single_doc_check=False,
     post_config=True,
-    description="For any member of a hierarchical family of initiator bus interfaces, if an address initiated by a cpu resolves to a location outside the containing hierarchical family of components, that address shall reference the same location.",
+    description="For any member of a hierarchical family of initiator bus interfaces, if an address initiated by a cpu resolves to reference a location outside the containing hierarchical family of components, that address shall reference the same location.",
 )

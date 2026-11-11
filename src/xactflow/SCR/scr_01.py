@@ -1,6 +1,6 @@
 """IEEE 1685-2022 Annex B, Table B.1: Cross-references and VLNVs (43 rules, SCR 1.1-1.43).
 
-SCR 1.2 and SCR 1.9 are implemented, exercised by link.resolver. Every other rule in
+SCR 1.2, SCR 1.5 and SCR 1.9 are implemented, exercised by link.resolver. Every other rule in
 this table is registered via stub() so it is tracked and discoverable through
 SCR.all_rules(), with no check logic yet.
 """
@@ -23,11 +23,10 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "Every IP-XACT document visible to a tool at one time shall have a unique VLNV. "
-        "Enforced separately in xactflow.library.Library.add, which every document indexed in "
-        "a library goes through, since detecting a duplicate needs the whole set at once; not "
-        "expressible as a single-document or single-linked-design check, so this entry "
-        "exists only for discoverability via SCR.all_rules()."
+        "Every IP-XACT document visible to a tool shall have a unique VLNV. Applies only to "
+        "documents visible to a particular tool or DE at one time. In particular, users are "
+        "likely to store multiple versions of the same documents, with the same VLNVs, in "
+        "source control systems."
     ),
 )
 
@@ -73,8 +72,8 @@ def _check_component_ref_is_component(linked: "LinkedDesign") -> Iterator[Diagno
     post_config=False,
     description=(
         "Any VLNV in an IP-XACT document used to reference another IP-XACT document shall "
-        "precisely match the identifying VLNV of an existing IP-XACT document. Checked here "
-        "for the busType and abstractionRef of every resolved instance's bus interfaces."
+        "precisely match the identifying VLNV of an existing IP-XACT document. In the schema, "
+        "such references always use the attribute group versionedIdentifier."
     ),
 )
 def _check_bus_interface_vlnv_refs_exist(linked: "LinkedDesign") -> Iterator[Diagnostic]:
@@ -116,7 +115,7 @@ stub(
     name="busDefExtendsVLNVIsBusDef",
     single_doc_check=False,
     post_config=False,
-    description="The VLNV in an extends element in a bus definition shall be a reference to a busDefinition.",
+    description="The VLNV in an extends element in a bus definition shall be a reference to a bus definition.",
 )
 
 stub(
@@ -127,21 +126,55 @@ stub(
     post_config=False,
     description=(
         "The VLNV in a busType element in a bus interface or abstraction definition shall be a "
-        "reference to a busDefinition."
+        "reference to a bus definition."
     ),
 )
 
-stub(
+@rule(
     id="SCR 1.5",
     table="B.1",
     name="designRefVLNVIsDesign",
     single_doc_check=False,
     post_config=False,
     description=(
-        "The VLNV in a designRef element in a designConfiguration or designInstantiation "
+        "The VLNV in a designRef element in a design configuration or designInstantiation "
         "element in a component shall be a reference to a design."
     ),
 )
+def _check_design_ref_is_design(linked: "LinkedDesign") -> Iterator[Diagnostic]:
+    """Checked for the linked design configuration and the designInstantiations of the component
+    containing the design (LinkedDesign.component)."""
+    references = []
+    configuration = linked.design_configuration
+    if configuration is not None and configuration.design_ref is not None:
+        references.append(
+            (f"designConfiguration {configuration.vlnv}", str(configuration.vlnv), configuration.design_ref.vlnv)
+        )
+    if linked.component is not None and linked.component.model is not None:
+        for instantiation in linked.component.model.design_instantiations:
+            references.append(
+                (
+                    f"component {linked.component.vlnv} designInstantiation '{instantiation.name}'",
+                    f"{linked.component.vlnv}/{instantiation.name}",
+                    instantiation.design_ref.vlnv,
+                )
+            )
+    for where, location, vlnv in references:
+        # the linked design need not be in the library, e.g. the design file given to the CLI.
+        if vlnv == linked.vlnv or linked.library.get_design(vlnv) is not None:
+            continue
+        existing = linked.library.get(vlnv)
+        if existing is None:
+            detail = f"no document with VLNV {vlnv} was found in the library"
+        else:
+            detail = f"VLNV {vlnv} resolves to a {type(existing).__name__}, not a design"
+        yield Diagnostic(
+            message=f"{where} designRef does not resolve to a design: {detail}",
+            severity=Severity.ERROR,
+            location=location,
+            rule_id="SCR 1.5",
+            rule_name="designRefVLNVIsDesign",
+        )
 
 stub(
     id="SCR 1.6",
@@ -162,7 +195,7 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "The VLNV in a generatorChainRef element in a designConfiguration shall be a "
+        "The VLNV in a generatorChainRef element in a design configuration shall be a "
         "reference to a generator chain."
     ),
 )
@@ -174,8 +207,8 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "The VLNV in a generatorChainRef subelement of the generatorChainSelector element in "
-        "a generator chain shall be a reference to a generator chain."
+        "The VLNV in a generatorChainRef subelement of the element generatorChainSelector in a "
+        "generator chain shall be a reference to a generator chain."
     ),
 )
 
@@ -200,7 +233,7 @@ stub(
     post_config=False,
     description=(
         "The VLNV in an abstractionType element in a component or abstractor shall reference "
-        "an abstractionDefinition."
+        "an abstractionDefiniton."
     ),
 )
 
@@ -212,8 +245,9 @@ stub(
     post_config=False,
     description=(
         "If a bus interface contains an abstractionType subelement, the abstraction "
-        "definition's busType element and the bus interface's busType element shall "
-        "reference the same bus definition."
+        "definition’s busType element and the bus interface’s busType element shall reference "
+        "the same bus definition. In other words, the abstraction referenced shall be an "
+        "abstraction of the referenced bus."
     ),
 )
 
@@ -246,7 +280,9 @@ stub(
     post_config=False,
     description=(
         "The VLNV within an ipxactFile/vlnv element in a catalog shall refer to an IP-XACT "
-        "file whose file type matches the container of the ipxactFile/vlnv element."
+        "file whose file type matches the container of the ipxactFile/vlnv element. For "
+        "example, all VLNVs within the catalog busDefinitions element shall refer to IP-XACT "
+        "busDefinitions elements."
     ),
 )
 
@@ -295,8 +331,8 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "The modeRef attribute in an externalModeReference element shall reference a mode "
-        "that exists in the typeDefinitions referenced in the typeDefinitionsRef element."
+        "The modeRef attribute in an externalModeReference element shall reference a mode that "
+        "exists in the typeDefinition referenced in the typeDefinitionsRef element."
     ),
 )
 
@@ -464,10 +500,10 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "All modeRef element values in an element referenced by a fieldDefinitionRef, "
+        "All modeRef element values in an element that is referenced in an fieldDefinitionRef, "
         "registerDefinitionRef, registerFileDefinitionRef, addressBlockDefinitionRef, "
-        "bankDefinitionRef, memoryMapDefinitionRef, or memoryRemapDefinitionRef shall occur "
-        "in externalModeReference element values of the corresponding externalTypeDefinitions "
+        "bankDefinitionRef, memoryMapDefinitionRef, or memoryRemapDefinitionRef shall occur in "
+        "externalModeReference element values of the corresponding externalTypeDefinitions "
         "element."
     ),
 )
@@ -479,11 +515,11 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "All resetTypeRef element values in an element referenced by a fieldDefinitionRef, "
-        "registerDefinitionRef, registerFileDefinitionRef, addressBlockDefinitionRef, "
-        "bankDefinitionRef, memoryMapDefinitionRef, or memoryRemapDefinitionRef shall occur "
-        "in externalResetTypeReference element values of the corresponding "
-        "externalTypeDefinitions element."
+        "All resetTypeRef element values in an element that is referenced in an "
+        "fieldDefinitionRef, registerDefinitionRef, registerFileDefinitionRef, "
+        "addressBlockDefinitionRef, bankDefinitionRef, memoryMapDefinitionRef, or "
+        "memoryRemapDefinitionRef shall occur in externalResetTypeReference element values of "
+        "the corresponding externalTypeDefinitions element."
     ),
 )
 
@@ -494,7 +530,7 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "All view element values in an element referenced by a registerDefinitionRef, "
+        "All view element values in an element that is referenced in an registerDefinitionRef, "
         "registerFileDefinitionRef, addressBlockDefinitionRef, bankDefinitionRef, "
         "memoryMapDefinitionRef, or memoryRemapDefinitionRef shall occur in "
         "externalViewReference element values of the corresponding externalTypeDefinitions "
@@ -546,8 +582,8 @@ stub(
     post_config=False,
     description=(
         "In a powerDomainLink, the externalPowerDomainRef attribute (resolved expression) "
-        "shall reference a powerDomain defined on the component referencing this design, or "
-        "referencing a designConfig that references this design."
+        "shall reference a powerDomain defined on the component referencing this design (or "
+        "referencing a designConfig that references this design)."
     ),
 )
 
@@ -589,8 +625,10 @@ stub(
     post_config=False,
     description=(
         "In a fieldReferenceGroup, an indices element shall contain an index for each array "
-        "dimension or shall not be present to reference the whole array; the total number of "
-        "field elements referenced shall match the total number of field elements in the "
-        "referencing field so both can be linearized and paired by linear index value."
+        "dimension or shall not be present to reference the whole array. The total number of "
+        "field elements referenced in the fieldReferenceGroup shall match the total number of "
+        "field elements in the referencing field such that both can be linearized and the "
+        "elements of the referencing and referenced field can be paired by the linear index "
+        "value."
     ),
 )

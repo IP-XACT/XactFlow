@@ -19,8 +19,15 @@ stub(
     description=(
         "No register shall have an addressOffset that falls within the address range of "
         "another register in the same address block, unless one of the registers and their "
-        "alternateRegisters have non-conflicting computed register access values. The address "
-        "range of a register is [addressOffset, addressOffset + registerSize - 1]."
+        "alternateRegisters have non-conflicting computed register access value; see C.2 and "
+        "C.3. The address range of a register is the range [addressOffset, addressOffset + "
+        "registerSize - 1] where registerSize is the size of the register in addressUnitBits. "
+        "This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number "
+        "of elements for each of n dimensions. In other words, multiple readable and multiple "
+        "writeable registers shall not overlap. Note that in this SCR, the least restrictive "
+        "access values in the relevant accessPolicies and fieldAccessPolicies shall be used to "
+        "determine the computed access values independent of the value of the mode conditions; "
+        "see C.3."
     ),
 )
 
@@ -31,10 +38,17 @@ stub(
     single_doc_check=False,
     post_config=True,
     description=(
-        "No bit field shall have a bitOffset value that falls within the bit range of "
-        "another bit field, unless one has computed access value read-only and the other "
-        "write-only, writeOnce, or no-access. The bit range of a bit field is "
-        "[bitOffset, bitOffset + bitFieldWidth - 1]."
+        "No bit field shall have a bitOffset value that falls within the bit range of another "
+        "bit field, unless one of the bit fields has computed access value read-only and the "
+        "other has computed access value write-only, writeOnce, or no-access; see C.2 and C.3. "
+        "The bit range of a bit field is the range [bitOffset, bitOffset + bitFieldWidth - 1] "
+        "where bitFieldWidth is the size of a field in bits. This is equal to "
+        "dim[n-1]*dim[n]*...*dim[0]*bitStride, where dim is the maximum number of elements for "
+        "each of n dimensions. In other words, multiple readable bit fields and multiple "
+        "writeable bit fields shall not overlap. Note that in this SCR, the least restrictive "
+        "access values in the relevant accessPolicies and fieldAccessPolicies shall be used to "
+        "determine the computed access values independent of the value of the mode conditions; "
+        "see C.3."
     ),
 )
 
@@ -44,7 +58,7 @@ stub(
     name="RegisterWithinBlock",
     single_doc_check=False,
     post_config=True,
-    description="Any register in an address block shall fall entirely within that address block, i.e. 0 <= addressOffset <= addressBlockRange - registerSize.",
+    description="Any register in an address block shall fall entirely within that address block, i.e., for every register 0 <= addressOffset <= addressBlockRange - registerSize, where addressBlockRange is the range of the address block and registerSize is the size of the register in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number of elements for each of n dimensions.",
 )
 
 stub(
@@ -53,7 +67,7 @@ stub(
     name="BitWithinRegister",
     single_doc_check=False,
     post_config=True,
-    description="Any bit field in a register shall fall entirely within that register, i.e. 0 <= bitOffset <= registerSize - bitFieldWidth.",
+    description="Any bit field in a register shall fall entirely within that register, i.e., for every bit field 0 <= bitOffset <= registerSize – bitFieldWidth, where registerSize is the size of the register in bits and bitFieldWidth is the width of a bit field. This is equal to dim[n-1]*dim[n]*...*dim[0]*bitStride, where dim is the maximum number of elements for each of n dimensions.",
 )
 
 stub(
@@ -71,7 +85,7 @@ stub(
     name="RegisterWithinRegisterFile",
     single_doc_check=False,
     post_config=True,
-    description="Any register in a register file shall fall entirely within that register file, i.e. 0 <= register.addressOffset <= registerFileRange - registerSize.",
+    description="Any register in a register file shall fall entirely within that register file, i.e., for every register 0 <= register.addressOffset <= registerFileRange - registerSize, where registerFileRange is the range of the register file and registerSize is the size of the register in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number of elements for each of n dimensions.",
 )
 
 stub(
@@ -80,7 +94,7 @@ stub(
     name="RegisterFileWithinBlock",
     single_doc_check=False,
     post_config=True,
-    description="Any register file in an address block shall fall entirely within that address block, i.e. 0 <= registerFile.addressOffset <= addressBlockRange - registerFileSize.",
+    description="Any register file in an address block shall fall entirely within that address block, i.e., for every register file 0 <= registerFile.addressOffset <= addressBlockRange - registerFileSize, where addressBlockRange is the range of the address block and registerFileSize is the size of the register file in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number of elements for each of n dimensions.",
 )
 
 stub(
@@ -107,7 +121,7 @@ stub(
     name="FieldUseEnumCondition",
     single_doc_check=True,
     post_config=True,
-    description="When a field has writeValueConstraint/useEnumeratedValues set to true, it also shall have at least one enumeratedValue with the attribute usage set to write or read-write.",
+    description="When a field has writeValueConstraint/ useEnumeratedValues set to true, it also shall have at least one enumeratedValue with the attribute usage set to write or read-write.",
 )
 
 stub(
@@ -116,7 +130,7 @@ stub(
     name="FieldConstraintRangeCondition",
     single_doc_check=True,
     post_config=True,
-    description="When a field has both a writeValueConstraint/minimum and a writeValueConstraint/maximum value, the value of maximum shall be greater than or equal to the value of minimum.",
+    description="When a field has a writeValueConstraint/ minimum value and has a writeValueConstraint/maximum value, the value of maximum shall be greater than or equal to the value of minimum.",
 )
 
 stub(
@@ -128,8 +142,8 @@ stub(
     description=(
         "When multiple field elements have the same typeIdentifier, the field object shall "
         "contain the same contents for the elements in the fieldDefinitionGroup. For a field "
-        "with an aliasOf element, the bitWidth, volatile, and resets of the field object are "
-        "those of the aliased field."
+        "with an aliasOf element, the bitWidth, volatile, and resets of the field object is "
+        "the bitWidth, volatile, and resets of the aliased field."
     ),
 )
 
@@ -172,7 +186,7 @@ stub(
     name="noWritePropsInROField",
     single_doc_check=True,
     post_config=True,
-    description="A register field whose access type does not allow writing (read-only or no-access) shall not include a modifiedWriteValue subelement.",
+    description="A register field whose access type does not allow writing (access type read-only or no-access) shall not include any of the following subelements: modifiedWriteValue.",
 )
 
 stub(
@@ -181,7 +195,7 @@ stub(
     name="noReadPropsInWOField",
     single_doc_check=True,
     post_config=True,
-    description="A register field whose access type does not allow reading (write-only, writeOnce, or no-access) shall not include a readAction subelement.",
+    description="A register field whose access type does not allow reading (access types of write-only, writeOnce or no-access) shall not include any of the following subelements: readAction.",
 )
 
 stub(
@@ -190,7 +204,7 @@ stub(
     name="registerFileOverlap",
     single_doc_check=False,
     post_config=True,
-    description="No register or register file shall have an addressOffset that falls within the address range of another register file in the same address block.",
+    description="No register or register file shall have an addressOffset that falls within the address range of another register file in the same address block. The address range of a register file is the range [addressOffset, addressOffset + registerFileSize - 1] where registerFileSize is the size of the register file in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number of elements for each of n dimensions.",
 )
 
 stub(
@@ -219,9 +233,10 @@ stub(
     post_config=False,
     description=(
         "An aliasOf element shall reference another field in the same component, "
-        "registerDefinition, registerFileDefinition, addressBlockDefinition, "
-        "bankDefinition, memoryMapDefinition, or memoryReMapDefinition that does not itself "
-        "have an aliasOf element."
+        "registerDefinition, registerFileDefinition, addressBlockDefinition, bankDefinition, "
+        "memoryMapDefinition, or memoryReMapDefinition that does not have an aliasOf element. "
+        "Note that a component and typeDefinition may be defined using multiple files due to "
+        "referencing of external typeDefinitions files."
     ),
 )
 
@@ -231,7 +246,7 @@ stub(
     name="broadcastToReference",
     single_doc_check=False,
     post_config=False,
-    description="A broadcastTo element shall reference another field in the same component, registerDefinition, registerFileDefinition, addressBlockDefinition, bankDefinition, memoryMapDefinition, or memoryReMapDefinition.",
+    description="A broadcastTo element shall reference another field in the same component, registerDefinition, registerFileDefinition, addressBlockDefinition, bankDefinition, memoryMapDefinition, or memoryReMapDefinition . Note that a component and typeDefinitions may be defined using multiple files due to referencing of external typeDefinitions files.",
 )
 
 stub(
@@ -241,9 +256,12 @@ stub(
     single_doc_check=False,
     post_config=False,
     description=(
-        "A field access shall drive a bit field only once, i.e. a field or fieldDefinition "
-        "field connection graph shall not contain an instance node reachable from more than "
-        "one mapping node starting at a single mapping node."
+        "A field access shall drive a bit field only once, i.e., a field or fieldDefinition "
+        "field connection graph shall not contain an instance node that can be reached from "
+        "more than one mapping node starting at a single mapping node. Note that in this SCR, "
+        "the least restrictive access values in the relevant accessPolicies and "
+        "fieldAccessPolicies shall be used to determine the computed access values independent "
+        "of the value of the mode conditions; see C.3."
     ),
 )
 
@@ -253,7 +271,7 @@ stub(
     name="noFieldWriteCycle",
     single_doc_check=False,
     post_config=False,
-    description="Field write accesses shall be single transactions, i.e. a field or fieldDefinition field connection graph shall not contain cycles containing more than one mapping node.",
+    description="Field write accesses shall be single transactions, i.e., a field or fieldDefinition field connection graph shall not contain cycles containing more than one mapping node. Note that in this SCR, the least restrictive access values in the relevant accessPolicies and fieldAccessPolicies shall be used to determine the computed access values independent of the value of the mode conditions; see C.3.",
 )
 
 stub(
@@ -262,7 +280,7 @@ stub(
     name="EnumeratedValueWidth",
     single_doc_check=False,
     post_config=False,
-    description="The width of value elements within an enumeratedValues list for a register field must be less than or equal to the width of the containing register field.",
+    description="The width of value elements within an enumeratedValues list for a register field (whether specified explicitly or within an enumerationDefinition) must be less than or equal to the width of the containing register field.",
 )
 
 stub(
@@ -280,7 +298,7 @@ stub(
     name="registerAlignment",
     single_doc_check=False,
     post_config=False,
-    description="For each register in an addressBlock with attribute misalignmentAllowed set to false, (register bit offset % addressBlock width) + register size <= addressBlock width.",
+    description="For each register in an addressBlock with attribute misalignmentAllowed set to false it shall hold that (register bit offset % addressBlock width) + register size <= addressBlock width.",
 )
 
 stub(
@@ -316,5 +334,5 @@ stub(
     name="RegisterFileWithinRegisterFile",
     single_doc_check=False,
     post_config=True,
-    description="Any register file in a register file RF shall fall entirely within that register file RF, i.e. 0 <= registerFile.addressOffset <= RF.range - registerFileSize.",
+    description="Any register file in a register file RF shall fall entirely within that register file RF, i.e., for every register file 0 <= registerFile.addressOffset <= RF.range - registerFileSize, where RF.range is the range of the register file RF and registerFileSize is the size of the register file in addressUnitBits. This is equal to dim[n-1]*dim[n]*...*dim[0]*stride, where dim is the maximum number of elements for each of n dimensions.",
 )
