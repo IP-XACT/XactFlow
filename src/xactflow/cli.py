@@ -50,7 +50,7 @@ def _dedupe_diagnostics(diagnostics: List[Diagnostic]) -> List[Diagnostic]:
 
 
 def _link_from_args(args: argparse.Namespace):
-    library = Library.scan(*args.lib)
+    library = Library.scan(*args.lib, files=args.lib_file)
     design = ipxact.parse_file(args.design)
     design_configuration = ipxact.parse_file(args.config) if args.config else None
     linked = link(design, library, design_configuration)
@@ -114,7 +114,7 @@ def _export(
 
 
 def _cmd_run_exporter(args: argparse.Namespace) -> int:
-    library = Library.scan(*args.lib)
+    library = Library.scan(*args.lib, files=args.lib_file)
     added = library.add_file(args.file, target=True)
     if args.config:
         added &= library.add_file(args.config, target=True)
@@ -144,10 +144,10 @@ def _cmd_run_importer(args: argparse.Namespace) -> int:
         print("--then-option requires --then to also be given", file=sys.stderr)
         return 1
 
-    # The importer adds its documents to the library scanned from --lib, and --then hands that
-    # same library to the exporter, in the same process: no serialization, no intermediate file,
-    # and the exporter can look up what the importer's documents refer to.
-    library = Library.scan(*args.lib)
+    # The importer adds its documents to the library read from --lib and --lib-file, and --then
+    # hands that same library to the exporter, in the same process: no serialization, no
+    # intermediate file, and the exporter can look up what the importer's documents refer to.
+    library = Library.scan(*args.lib, files=args.lib_file)
     options = dict(args.option or [])
     args.importer_class().import_(Path(args.source), library, **options)
     _print_diagnostics(library.diagnostics)
@@ -179,18 +179,38 @@ def _cmd_run_importer(args: argparse.Namespace) -> int:
     return 0
 
 
+def _add_lib_arguments(parser: argparse.ArgumentParser, purpose: str = "") -> None:
+    """--lib and --lib-file, both read by Library.scan into the one library a subcommand uses.
+    purpose, if given, says who looks the library's documents up.
+    """
+    parser.add_argument(
+        "--lib",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help=f"directory to scan for IP-XACT files{purpose}; may be given multiple times",
+    )
+    # extend + nargs="+" so a build system's file list can be passed as is after one --lib-file.
+    # It takes every argument up to the next option, so a positional argument goes before it.
+    parser.add_argument(
+        "--lib-file",
+        action="extend",
+        nargs="+",
+        default=[],
+        metavar="FILE",
+        help=(
+            f"IP-XACT files{purpose}, read without scanning a directory, e.g. a build system's "
+            "file list; may be given multiple times"
+        ),
+    )
+
+
 def _add_builtin_subparsers(subparsers: "argparse._SubParsersAction") -> None:
     link_parser = subparsers.add_parser(
         "link", help="resolve a design against a library and report SCR diagnostics"
     )
     link_parser.add_argument("design", help="path to the top-level design XML file")
-    link_parser.add_argument(
-        "--lib",
-        action="append",
-        default=[],
-        metavar="DIR",
-        help="directory to scan for IP-XACT files; may be given multiple times",
-    )
+    _add_lib_arguments(link_parser)
     link_parser.add_argument(
         "--config", default=None, metavar="FILE", help="path to the matching designConfiguration XML file"
     )
@@ -210,13 +230,7 @@ def _add_exporter_subparser(
         name, help=f"run the '{name}' exporter on an IP-XACT file, linking it first if it is a design"
     )
     parser.add_argument("file", help="path to the IP-XACT file to export, e.g. a top-level design")
-    parser.add_argument(
-        "--lib",
-        action="append",
-        default=[],
-        metavar="DIR",
-        help="directory to scan for IP-XACT files; may be given multiple times",
-    )
+    _add_lib_arguments(parser)
     parser.add_argument(
         "--config", default=None, metavar="FILE", help="path to the matching designConfiguration XML file"
     )
@@ -236,16 +250,7 @@ def _add_importer_subparser(
 ) -> None:
     parser = subparsers.add_parser(name, help=f"run the '{name}' importer on a non-IP-XACT source file")
     parser.add_argument("source", help="path to the source file to import")
-    parser.add_argument(
-        "--lib",
-        action="append",
-        default=[],
-        metavar="DIR",
-        help=(
-            "directory to scan for IP-XACT files the importer and --then's exporter can look up; "
-            "may be given multiple times"
-        ),
-    )
+    _add_lib_arguments(parser, " the importer and --then's exporter can look up")
     parser.add_argument(
         "--option", action="append", type=_parse_option, metavar="KEY=VALUE",
         help="an importer-specific option, may be given multiple times",

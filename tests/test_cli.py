@@ -40,6 +40,52 @@ def test_link_with_missing_lib_dir_exits_nonzero(capsys, tmp_path):
     assert "library scan root does not exist" in capsys.readouterr().err
 
 
+def test_link_with_lib_files_only_exits_zero(capsys):
+    # the whole file list after a single --lib-file, as a build system gives it.
+    basic = FIXTURES / "basic"
+    lib_files = [str(path) for path in sorted(basic.glob("*.xml"))]
+
+    exit_code = main(["link", str(basic / "top_design.xml"), "--lib-file", *lib_files])
+
+    assert exit_code == 0
+    assert "linked 'example.org:soc:top:1.0' with no errors" in capsys.readouterr().out
+
+
+def test_link_mixes_lib_and_lib_file(capsys, tmp_path):
+    # the design's components come from one folder, its bus definitions from files given by name.
+    basic = FIXTURES / "basic"
+    for name in ("initiator_component.xml", "target_component.xml"):
+        (tmp_path / name).write_bytes((basic / name).read_bytes())
+
+    exit_code = main(
+        [
+            "link",
+            str(basic / "top_design.xml"),
+            "--lib",
+            str(tmp_path),
+            "--lib-file",
+            str(basic / "simplebus_busdefinition.xml"),
+            "--lib-file=" + str(basic / "simplebus_abstractiondefinition.xml"),
+        ]
+    )
+
+    assert exit_code == 0, capsys.readouterr().err
+
+
+def test_link_with_missing_lib_file_exits_nonzero(capsys, tmp_path):
+    exit_code = main(
+        [
+            "link",
+            str(FIXTURES / "basic" / "top_design.xml"),
+            "--lib-file",
+            str(tmp_path / "does_not_exist.xml"),
+        ]
+    )
+
+    assert exit_code == 1
+    assert "library file does not exist" in capsys.readouterr().err
+
+
 def test_link_reports_unresolvable_component_ref_and_exits_nonzero(capsys):
     exit_code = main(
         [

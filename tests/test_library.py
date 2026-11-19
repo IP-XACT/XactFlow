@@ -365,3 +365,52 @@ def test_add_file_applies_the_same_namespace_filtering_as_scan(tmp_path):
 def test_add_file_raises_on_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError, match="does_not_exist.xml"):
         Library().add_file(tmp_path / "does_not_exist.xml")
+
+
+def test_scan_reads_files_given_one_by_one_without_scanning_their_directory():
+    library = Library.scan(
+        files=[FIXTURES / "basic" / "top_design.xml", FIXTURES / "basic" / "target_component.xml"]
+    )
+
+    assert {str(vlnv) for vlnv in library.entries} == {"example.org:soc:top:1.0", "example.org:ip:target_comp:1.0"}
+    assert library.diagnostics == []
+    assert next(library.targets(), None) is None
+
+
+def test_scan_reads_a_file_also_found_under_a_root_once():
+    library = Library.scan(FIXTURES / "basic", files=[FIXTURES / "basic" / "top_design.xml"])
+
+    assert library.diagnostics == Library.scan(FIXTURES / "basic").diagnostics
+
+
+def test_scan_file_with_duplicate_vlnv_is_an_scr_1_1_error():
+    library = Library.scan(FIXTURES / "basic", files=[FIXTURES / "duplicate" / "initiator_comp_copy.xml"])
+
+    assert len([d for d in library.diagnostics if d.rule_id == "SCR 1.1"]) == 1
+
+
+def test_scan_raises_on_missing_file_before_reading_anything(tmp_path):
+    with pytest.raises(FileNotFoundError, match="does_not_exist.xml"):
+        Library.scan(FIXTURES / "basic", files=[tmp_path / "does_not_exist.xml"])
+
+
+def test_scan_raises_on_file_that_is_a_directory():
+    with pytest.raises(IsADirectoryError):
+        Library.scan(files=[FIXTURES / "basic"])
+
+
+def test_scan_warns_on_a_given_file_that_is_not_ipxact():
+    # skipped silently under a root, but a file given by name is meant to be IP-XACT.
+    path = FIXTURES / "not_ipxact" / "not_ipxact.xml"
+    library = Library.scan(files=[path])
+
+    assert len(library.diagnostics) == 1
+    assert library.diagnostics[0].severity is Severity.WARNING
+    assert library.diagnostics[0].location == str(path)
+
+
+def test_scan_warns_once_on_a_given_file_of_another_ipxact_version(tmp_path):
+    (tmp_path / "old.xml").write_text(_IPXACT_2014_XML)
+    library = Library.scan(files=[tmp_path / "old.xml"])
+
+    assert [d.location for d in library.diagnostics] == [str(tmp_path / "old.xml")]

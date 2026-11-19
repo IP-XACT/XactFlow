@@ -27,16 +27,19 @@ pip install -r requirements-dev.txt -e .
 ## Command line
 
 ```bash
-xactflow link design.xml --lib DIR [--lib DIR ...] [--config designConfig.xml]
+xactflow link design.xml [--lib DIR ...] [--lib-file FILE [FILE ...]] [--config designConfig.xml]
 xactflow check file.xml
 ```
 
-- `link` scans the `--lib` folders, resolves the design against them, prints the diagnostics,
-  and exits with 1 if any is an error.
+- `link` scans the `--lib` folders and reads the `--lib-file` files, resolves the design against
+  them, prints the diagnostics, and exits with 1 if any is an error. `--lib-file` adds files
+  without scanning a folder: it takes every argument up to the next option, so a build system's
+  file list can follow it as is (`--lib-file a.xml b.xml`), and the design must come before it.
+  Both options may be repeated and mixed.
 - `check` runs the checks that need only one file, without a library.
 
 Each installed plugin adds its own subcommand (see [Plugins](#plugins)). Both kinds work on one
-`Library`, scanned from the `--lib` folders:
+`Library`, read from the `--lib` folders and `--lib-file` files:
 
 - an exporter: `xactflow <exporter> file.xml --lib DIR [--config FILE] --output DIR` adds
   `file.xml` to the library as the target to export, links it first if it is a design, and
@@ -85,8 +88,9 @@ error: [SCR 2.4] interconnection 'conn0' connects ... (example.org:soc:top:1.0/c
 
 `Library` indexes documents by VLNV:
 
-- `Library.scan(*folders)` reads every IEEE 1685-2022 file under the folders. A missing folder
-  raises an error; files of another IP-XACT version, or a folder with no 1685-2022 file, give a
+- `Library.scan(*folders, files=())` reads every IEEE 1685-2022 file under the folders, then
+  each of `files`. A missing folder or file raises an error; files of another IP-XACT version, a
+  folder with no 1685-2022 file, or one of `files` that is not a 1685-2022 document, give a
   warning in `library.diagnostics`.
 - `library.add_file(path)` adds one file, with the same checks.
 - `library.add(document, path=None, replace=False, target=False)` adds a document that only

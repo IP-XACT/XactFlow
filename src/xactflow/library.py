@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator, Optional, Tuple, Type, Union
+from typing import Iterable, Iterator, Optional, Tuple, Type, Union
 
 import ipxact
 from lxml import etree
@@ -41,13 +41,14 @@ class LibraryEntry:
 
 @dataclass
 class Library:
-    """A VLNV-indexed collection of IP-XACT documents discovered by scanning directories.
+    """A VLNV-indexed collection of IP-XACT documents.
 
-    Every .xml file under the scanned roots is parsed with ipxact.parse_file, and
-    documents that parse successfully are indexed by their VLNV. Files that fail to parse, and
-    VLNV collisions (SCR 1.1 uniqueVLNV), are recorded as diagnostics instead of raising.
-    Documents that only exist in memory (e.g. produced by an importer) go through Library.add,
-    which applies the same checks.
+    Documents come from three sources, all with the same checks: the .xml files under the
+    directories given to scan, the files given to scan(files=...) or add_file, and documents that
+    only exist in memory (e.g. produced by an importer), given to add. Each IEEE 1685-2022
+    document is indexed by its VLNV. Files that fail to parse and VLNV collisions (SCR 1.1
+    uniqueVLNV) are recorded as diagnostics instead of raising; only a missing directory or file
+    raises.
 
     The library is what importers and exporters share: an importer adds the documents it
     produces with target=True, and an exporter writes the targets() it supports, looking up
@@ -60,13 +61,22 @@ class Library:
     _read_files: "set[Path]" = field(default_factory=set, init=False, repr=False)
 
     @classmethod
-    def scan(cls, *roots: Union[str, Path]) -> "Library":
+    def scan(cls, *roots: Union[str, Path], files: Iterable[Union[str, Path]] = ()) -> "Library":
+        """Read every .xml file under roots, then each of files, which are read directly without
+        scanning a directory, e.g. a file list given by a build system.
+        """
         root_paths = [Path(root) for root in roots]
         for root in root_paths:
             if not root.exists():
                 raise FileNotFoundError(f"library scan root does not exist: {root}")
             if not root.is_dir():
                 raise NotADirectoryError(f"library scan root is not a directory: {root}")
+        file_paths = [Path(file) for file in files]
+        for path in file_paths:
+            if not path.exists():
+                raise FileNotFoundError(f"library file does not exist: {path}")
+            if path.is_dir():
+                raise IsADirectoryError(f"library file is a directory, not a file: {path}")
 
         library = cls()
         for root in root_paths:
@@ -81,6 +91,18 @@ class Library:
                         message=f"no IEEE 1685-2022 IP-XACT document was indexed from {root}",
                         severity=Severity.WARNING,
                         location=str(root),
+                    )
+                )
+        for path in file_paths:
+            reported = len(library.diagnostics)
+            if not library.add_file(path) and len(library.diagnostics) == reported:
+                # A file given by name is meant to be IP-XACT, so unlike one found under a root it
+                # is not skipped silently; a file add_file already reported on is not reported twice.
+                library.diagnostics.append(
+                    Diagnostic(
+                        message=f"skipped {path}: not an IEEE 1685-2022 IP-XACT document",
+                        severity=Severity.WARNING,
+                        location=str(path),
                     )
                 )
         return library
